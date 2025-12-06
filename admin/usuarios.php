@@ -93,7 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         } else {
                             $stmt = $db->prepare("
                                 UPDATE usuarios 
-                                SET nombre = ?, email = ?, username = ?, password = ?, rol = ?, punto_venta_id = ?, activo = ? 
+                                SET nombre = ?, email = ?, username = ?, password = ?, user_rol = ?, punto_venta_id = ?, activo = ? 
                                 WHERE id = ?
                             ");
                             $stmt->execute([$nombre, $email, $username, hash_password($password), $rol, $punto_venta_id, $activo, $id]);
@@ -101,7 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     } else {
                         $stmt = $db->prepare("
                             UPDATE usuarios 
-                            SET nombre = ?, email = ?, username = ?, rol = ?, punto_venta_id = ?, activo = ? 
+                            SET nombre = ?, email = ?, username = ?, user_rol = ?, punto_venta_id = ?, activo = ? 
                             WHERE id = ?
                         ");
                         $stmt->execute([$nombre, $email, $username, $rol, $punto_venta_id, $activo, $id]);
