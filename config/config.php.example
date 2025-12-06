@@ -1,0 +1,29 @@
+<?php
+// config/config.php.example
+// Plantilla segura (NO contiene credenciales). Copia este archivo a
+// config/config.php y rellena los valores con tus credenciales reales.
+
+date_default_timezone_set('America/Argentina/Buenos_Aires');
+
+// Modo debug (solo local)
+define('DEBUG_MODE', false);
+
+// Conexión a la base de datos
+define('DB_HOST', 'localhost');
+define('DB_NAME', 'nombre_base_de_datos');
+define('DB_USER', 'usuario_bd');
+define('DB_PASS', 'contraseña_bd');
+define('DB_CHARSET', 'utf8mb4');
+
+// Opciones de sesión seguras
+if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.cookie_httponly', 1);
+    ini_set('session.use_only_cookies', 1);
+}
+
+// URL base del sitio
+if (!defined('BASE_URL')) {
+    define('BASE_URL', 'https://gestion-de-ventaspos.kcrsf.com');
+}
+
+// NOTA: No subas `config/config.php` al repositorio. Añade /config/config.php a .gitignore.

@@ -1,0 +1,84 @@
+# Archivos de configuración sensibles
+.env
+.env.local
+.env.production
+.htaccess
+deploy.php
+
+# Archivos de imágenes subidas
+uploads/*
+!uploads/.gitkeep
+
+# Logs
+*.log
+logs/
+error_log
+
+# Archivos temporales
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# IDE y editores
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.project
+.settings/
+nbproject/
+
+# Sistema operativo
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Node modules (si usas npm para algo)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Composer (si usas Composer)
+vendor/
+composer.lock
+
+# Archivos de respaldo
+*.bak
+*.backup
+*.old
+*_backup
+*_old
+
+# Archivos de base de datos
+*.sql.gz
+*.sql.zip
+backup/
+
+# Carpeta privada - NUNCA SUBIR A GIT
+private/
+
+# Archivos de caché
+cache/
+*.cache
+
+# Variables de entorno sensibles
+.env.local
+.env.production
+
+# Archivos de sesión PHP
+sessions/
+
+# Documentación generada
+docs/_build/
+
+# Pruebas
+tests/coverage/
+phpunit.xml
+.phpunit.result.cache

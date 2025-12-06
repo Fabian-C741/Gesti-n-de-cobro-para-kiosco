@@ -1,0 +1,138 @@
+<?php
+/**
+ * PLANTILLA DE DEPLOY.PHP
+ * 
+ * INSTRUCCIONES:
+ * 1. Copiar este archivo a Hostinger como: public_html/deploy.php
+ * 2. Editar la línea 11 y poner un token secreto único
+ * 3. NO subir el archivo con el token a Git
+ * 4. Configurar webhook en GitHub (ver README_DEPLOY.md)
+ */
+
+// ===== CONFIGURAR ESTE TOKEN =====
+define('SECRET_TOKEN', 'TokenDeSeguridad987#'); // ⚠️ CAMBIAR ESTO
+define('GIT_REPO_URL', 'https://github.com/Fabian-C741/Gesti-n-de-cobro-para-kiosco.git');
+define('BRANCH', 'main');
+define('DEPLOY_PATH', __DIR__);
+define('LOG_FILE', __DIR__ . '/deploy.log');
+
+// ===== NO EDITAR ABAJO DE ESTA LÍNEA =====
+
+function log_message($message) {
+    $timestamp = date('Y-m-d H:i:s');
+    $log_entry = "[$timestamp] $message\n";
+    file_put_contents(LOG_FILE, $log_entry, FILE_APPEND);
+    echo $log_entry;
+}
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    log_message('ERROR: Método no permitido. Solo POST.');
+    die('Method Not Allowed');
+}
+
+$payload = file_get_contents('php://input');
+$data = json_decode($payload, true);
+
+if (isset($_SERVER['HTTP_X_HUB_SIGNATURE_256'])) {
+    $signature = 'sha256=' . hash_hmac('sha256', $payload, SECRET_TOKEN);
+    if (!hash_equals($signature, $_SERVER['HTTP_X_HUB_SIGNATURE_256'])) {
+        http_response_code(403);
+        log_message('ERROR: Firma inválida.');
+        die('Forbidden - Invalid signature');
+    }
+} else {
+    if (!isset($_GET['token']) || $_GET['token'] !== SECRET_TOKEN) {
+        http_response_code(403);
+        log_message('ERROR: Token inválido.');
+        die('Forbidden - Invalid token');
+    }
+}
+
+if (isset($data['ref']) && $data['ref'] !== 'refs/heads/' . BRANCH) {
+    log_message('INFO: Push a branch ' . $data['ref'] . ', ignorando.');
+    die('Not main branch, skipping deployment');
+}
+
+log_message('=== INICIO DE DESPLIEGUE ===');
+log_message('Repository: ' . ($data['repository']['full_name'] ?? 'unknown'));
+log_message('Pusher: ' . ($data['pusher']['name'] ?? 'unknown'));
+log_message('Commits: ' . count($data['commits'] ?? []));
+
+chdir(DEPLOY_PATH);
+
+$commands = [];
+
+if (!file_exists(DEPLOY_PATH . '/.git')) {
+    log_message('INFO: Primera instalación - Clonando repositorio...');
+    $commands[] = "git clone -b " . BRANCH . " " . GIT_REPO_URL . " temp_clone 2>&1";
+    $commands[] = "shopt -s dotglob && mv temp_clone/* . 2>&1";
+    $commands[] = "rm -rf temp_clone 2>&1";
+} else {
+    log_message('INFO: Actualizando repositorio existente...');
+    $commands[] = "git fetch origin " . BRANCH . " 2>&1";
+    $commands[] = "git reset --hard origin/" . BRANCH . " 2>&1";
+    $commands[] = "git clean -fd 2>&1";
+}
+
+$output = [];
+$return_code = 0;
+
+foreach ($commands as $command) {
+    log_message("Ejecutando: $command");
+    exec($command, $output, $return_code);
+    
+    foreach ($output as $line) {
+        log_message("  > $line");
+    }
+    
+    if ($return_code !== 0) {
+        log_message("ERROR: Comando falló con código $return_code");
+        http_response_code(500);
+        die('Deployment failed');
+    }
+    
+    $output = [];
+}
+
+$folders_to_chmod = [
+    'uploads',
+    'uploads/productos',
+    'uploads/backgrounds',
+    'uploads/logos',
+    'assets/css'
+];
+
+foreach ($folders_to_chmod as $folder) {
+    $folder_path = DEPLOY_PATH . '/' . $folder;
+    if (file_exists($folder_path)) {
+        chmod($folder_path, 0755);
+        log_message("Permisos actualizados: $folder");
+    }
+}
+
+if (file_exists(DEPLOY_PATH . '/includes/personalization.php')) {
+    require_once DEPLOY_PATH . '/config/config.php';
+    require_once DEPLOY_PATH . '/includes/Database.php';
+    require_once DEPLOY_PATH . '/includes/personalization.php';
+    
+    try {
+        $db = Database::getInstance()->getConnection();
+        generate_custom_css($db);
+        log_message('CSS personalizado regenerado');
+    } catch (Exception $e) {
+        log_message('WARN: No se pudo regenerar CSS: ' . $e->getMessage());
+    }
+}
+
+log_message('=== DESPLIEGUE COMPLETADO EXITOSAMENTE ===');
+log_message('');
+
+http_response_code(200);
+echo json_encode([
+    'status' => 'success',
+    'message' => 'Deployment completed successfully',
+    'timestamp' => date('Y-m-d H:i:s'),
+    'commits' => count($data['commits'] ?? [])
+]);
+?>

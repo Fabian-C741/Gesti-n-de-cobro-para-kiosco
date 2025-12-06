@@ -1,0 +1,32 @@
+/* CSS Generado Automáticamente - No Editar Manualmente */
+
+:root {
+    --primary-color: #0d6efd;
+    --secondary-color: #6c757d;
+    --success-color: #198754;
+    --danger-color: #dc3545;
+    --btn-radius: 8px;
+    --card-radius: 12px;
+}
+
+.sidebar {
+    background: linear-gradient(180deg, #0d6efd 0%, #0a58ca 100%);
+}
+
+.btn { border-radius: var(--btn-radius); }
+.card { border-radius: var(--card-radius); }
+.form-control, .form-select { border-radius: var(--btn-radius); }
+
+.btn-primary { background-color: var(--primary-color); border-color: var(--primary-color); }
+.btn-primary:hover { background-color: var(--primary-color); filter: brightness(0.9); }
+.btn-secondary { background-color: var(--secondary-color); border-color: var(--secondary-color); }
+.btn-success { background-color: var(--success-color); border-color: var(--success-color); }
+.btn-danger { background-color: var(--danger-color); border-color: var(--danger-color); }
+
+.bg-primary { background-color: var(--primary-color) !important; }
+.bg-secondary { background-color: var(--secondary-color) !important; }
+.bg-success { background-color: var(--success-color) !important; }
+.bg-danger { background-color: var(--danger-color) !important; }
+
+.text-primary { color: var(--primary-color) !important; }
+.badge.bg-primary { background-color: var(--primary-color) !important; }
