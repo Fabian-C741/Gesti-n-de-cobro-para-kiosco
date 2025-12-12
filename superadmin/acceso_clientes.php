@@ -23,8 +23,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['tenant_id'])) {
         $error = 'Cliente no encontrado';
     } else {
         try {
-            // Conectar a la base de datos del tenant usando credenciales del .env
+            // Conectar a la base de datos del tenant usando credenciales actualizadas
             $tenant_dsn = "mysql:host=localhost;dbname={$tenant['bd_nombre']};charset=utf8mb4";
+            // Usar credenciales del .env ya que las de la tabla tenants están desactualizadas
             $tenant_conn = new PDO($tenant_dsn, DB_USER_MASTER, DB_PASS_MASTER);
             $tenant_conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             
