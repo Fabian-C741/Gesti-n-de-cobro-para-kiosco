@@ -103,29 +103,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (PDOException $e) {
             $error = 'Error al cambiar estado: ' . $e->getMessage();
         }
-    } elseif ($action === 'cambiar_estado_tenant') {
-        // Cambiar estado del cliente (tenant) completo
-        $nuevo_estado = $_POST['nuevo_estado'] ?? '';
-        
-        if (in_array($nuevo_estado, ['activo', 'suspendido', 'vencido'])) {
-            try {
-                $stmt = $conn_master->prepare("UPDATE tenants SET estado = ? WHERE id = ?");
-                $stmt->execute([$nuevo_estado, $selected_tenant_id]);
-                
-                registrarLog($selected_tenant_id, 'estado_cambiado', "Estado cambiado a: $nuevo_estado (desde Puntos de Venta)");
-                $exito = "Estado del cliente actualizado a: " . ucfirst($nuevo_estado);
-                $tenant_id = $selected_tenant_id;
-                
-                // Actualizar tenant_actual
-                $stmt = $conn_master->prepare("SELECT * FROM tenants WHERE id = ?");
-                $stmt->execute([$selected_tenant_id]);
-                $tenant_actual = $stmt->fetch();
-            } catch (PDOException $e) {
-                $error = 'Error al cambiar estado del cliente: ' . $e->getMessage();
-            }
-        } else {
-            $error = 'Estado no válido';
-        }
     }
 }
 
@@ -282,7 +259,7 @@ $page_title = 'Gestión de Puntos de Venta';
 
     <?php if ($tenant_id > 0 && $tenant_actual): ?>
     
-    <!-- Info del Cliente con Estado -->
+    <!-- Info del Cliente con Estado (sincronizado con Gestión de Clientes) -->
     <div class="card mb-4 <?= $tenant_actual['estado'] !== 'activo' ? 'border-warning' : 'border-success' ?>">
         <div class="card-header d-flex justify-content-between align-items-center <?= $tenant_actual['estado'] !== 'activo' ? 'bg-warning bg-opacity-25' : 'bg-success bg-opacity-10' ?>">
             <div>
@@ -307,16 +284,10 @@ $page_title = 'Gestión de Puntos de Venta';
                     <?= ucfirst($tenant_actual['estado']) ?>
                 </span>
                 
-                <!-- Botones para cambiar estado -->
-                <?php if ($tenant_actual['estado'] === 'activo'): ?>
-                    <button class="btn btn-warning btn-sm" onclick="cambiarEstadoTenant('suspendido')" title="Suspender Cliente">
-                        <i class="bi bi-pause-circle me-1"></i>Suspender
-                    </button>
-                <?php else: ?>
-                    <button class="btn btn-success btn-sm" onclick="cambiarEstadoTenant('activo')" title="Activar Cliente">
-                        <i class="bi bi-play-circle me-1"></i>Activar
-                    </button>
-                <?php endif; ?>
+                <!-- Enlace a Gestión de Clientes para cambiar estado -->
+                <a href="tenants.php" class="btn btn-outline-primary btn-sm" title="Ir a Gestión de Clientes">
+                    <i class="bi bi-gear me-1"></i>Gestionar
+                </a>
             </div>
         </div>
         <?php if ($tenant_actual['estado'] !== 'activo'): ?>
@@ -324,7 +295,8 @@ $page_title = 'Gestión de Puntos de Venta';
             <div class="alert alert-warning mb-0">
                 <i class="bi bi-exclamation-triangle-fill me-2"></i>
                 <strong>Atención:</strong> Este cliente está <strong><?= $tenant_actual['estado'] ?></strong>. 
-                Los usuarios no pueden acceder al sistema hasta que se active.
+                Los usuarios no pueden acceder al sistema. 
+                <a href="tenants.php" class="alert-link">Ir a Gestión de Clientes para activarlo</a>.
             </div>
         </div>
         <?php endif; ?>
@@ -493,13 +465,6 @@ $page_title = 'Gestión de Puntos de Venta';
     <input type="hidden" name="estado" id="toggle_estado">
 </form>
 
-<!-- Form oculto para cambiar estado del TENANT/CLIENTE -->
-<form id="formCambiarEstadoTenant" method="POST" style="display: none;">
-    <input type="hidden" name="action" value="cambiar_estado_tenant">
-    <input type="hidden" name="tenant_id" value="<?= $tenant_id ?>">
-    <input type="hidden" name="nuevo_estado" id="nuevo_estado_tenant">
-</form>
-
 <script>
 function editarPuntoVenta(pv) {
     document.getElementById('edit_id').value = pv.id;
@@ -517,18 +482,6 @@ function toggleEstado(id, estado) {
         document.getElementById('toggle_id').value = id;
         document.getElementById('toggle_estado').value = estado;
         document.getElementById('formToggle').submit();
-    }
-}
-
-function cambiarEstadoTenant(nuevoEstado) {
-    const mensajes = {
-        'activo': '¿Está seguro de ACTIVAR este cliente? Los usuarios podrán acceder al sistema.',
-        'suspendido': '¿Está seguro de SUSPENDER este cliente? Los usuarios NO podrán acceder al sistema hasta que se active nuevamente.'
-    };
-    
-    if (confirm(mensajes[nuevoEstado] || '¿Está seguro de cambiar el estado?')) {
-        document.getElementById('nuevo_estado_tenant').value = nuevoEstado;
-        document.getElementById('formCambiarEstadoTenant').submit();
     }
 }
 </script>
