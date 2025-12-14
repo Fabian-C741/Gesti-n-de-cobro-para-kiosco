@@ -540,43 +540,50 @@ function limpiarFormulario() {
     document.getElementById('productoNombre').disabled = false;
 }
 
-// Validar código de barras
-let validando = false;
-async function validarCodigo() {
-    if (validando) return;
-    
+// Validar código de barras con XMLHttpRequest (más confiable)
+function validarCodigo() {
     const input = document.getElementById('productoCodigoBarras');
     const nombreInput = document.getElementById('productoNombre');
     const codigo = input.value.trim();
     const productoId = document.getElementById('productoId').value || 0;
     
     if (!codigo) {
-        nombreInput.disabled = false;
         nombreInput.focus();
         return;
     }
     
-    validando = true;
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', '../api/validar_codigo_barras.php?codigo=' + encodeURIComponent(codigo) + '&excluir_id=' + productoId, true);
+    xhr.timeout = 5000;
     
-    try {
-        const response = await fetch(`../api/validar_codigo_barras.php?codigo=${encodeURIComponent(codigo)}&excluir_id=${productoId}`);
-        const data = await response.json();
-        
-        if (data.existe) {
-            alert('¡DUPLICADO! El producto "' + data.nombre + '" ya tiene ese código.');
-            input.value = '';
-            nombreInput.disabled = false;
-            input.focus();
+    xhr.onload = function() {
+        if (xhr.status === 200) {
+            try {
+                const data = JSON.parse(xhr.responseText);
+                if (data.existe) {
+                    alert('¡DUPLICADO! El producto "' + data.nombre + '" ya tiene ese código.');
+                    input.value = '';
+                    input.focus();
+                } else {
+                    nombreInput.focus();
+                }
+            } catch(e) {
+                nombreInput.focus();
+            }
         } else {
-            nombreInput.disabled = false;
             nombreInput.focus();
         }
-    } catch (error) {
-        nombreInput.disabled = false;
-        nombreInput.focus();
-    }
+    };
     
-    validando = false;
+    xhr.onerror = function() {
+        nombreInput.focus();
+    };
+    
+    xhr.ontimeout = function() {
+        nombreInput.focus();
+    };
+    
+    xhr.send();
 }
 
 document.getElementById('modalProducto').addEventListener('hidden.bs.modal', function () {
@@ -585,11 +592,14 @@ document.getElementById('modalProducto').addEventListener('hidden.bs.modal', fun
 
 document.getElementById('modalProducto').addEventListener('shown.bs.modal', function () {
     const codigoInput = document.getElementById('productoCodigoBarras');
+    codigoInput.focus();
     
     codigoInput.onkeydown = function(e) {
         if (e.key === 'Enter') {
             e.preventDefault();
+            e.stopPropagation();
             validarCodigo();
+            return false;
         }
     };
 });
