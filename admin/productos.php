@@ -597,17 +597,31 @@ document.addEventListener('DOMContentLoaded', function() {
     const codigoInput = document.getElementById('productoCodigoBarras');
     const nombreInput = document.getElementById('productoNombre');
     
+    console.log('Script cargado, codigoInput:', codigoInput);
+    
     if (codigoInput) {
         codigoInput.addEventListener('input', function() {
+            console.log('INPUT evento - valor:', this.value);
             if (this.value.trim().length > 0) {
                 nombreInput.disabled = true;
             }
-            if (this.value.trim().length >= 8) {
+            if (this.value.trim().length >= 3) {
                 validarCodigo();
             }
         });
         
+        codigoInput.addEventListener('paste', function(e) {
+            console.log('PASTE evento');
+            setTimeout(() => {
+                console.log('Después de pegar:', this.value);
+                if (this.value.trim().length >= 1) {
+                    validarCodigo();
+                }
+            }, 100);
+        });
+        
         codigoInput.addEventListener('keydown', function(e) {
+            console.log('KEYDOWN evento - tecla:', e.key);
             if (e.key === 'Enter' || e.key === 'Tab') {
                 e.preventDefault();
                 if (this.value.trim().length >= 1) {
@@ -615,6 +629,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
+    } else {
+        console.log('ERROR: No se encontró el input productoCodigoBarras');
     }
 });
 </script>
