@@ -443,12 +443,7 @@ include 'includes/header.php';
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Código de Barras</label>
-                            <div class="input-group">
-                                <input type="text" class="form-control" name="codigo_barras" id="productoCodigoBarras" placeholder="Escanea o escribe">
-                                <button type="button" class="btn btn-outline-secondary" onclick="buscarPorCodigoBarras()">
-                                    <i class="bi bi-search"></i>
-                                </button>
-                            </div>
+                            <input type="text" class="form-control" name="codigo_barras" id="productoCodigoBarras" placeholder="Escanea o escribe">
                             <small class="text-muted">Escanea con el lector o escribe manualmente</small>
                         </div>
                         <div class="col-md-6 mb-3">
@@ -545,10 +540,10 @@ function buscarPorCodigoBarras() {
     const codigoBarras = document.getElementById('productoCodigoBarras').value.trim();
     
     if (!codigoBarras) {
-        alert('Por favor ingresa un código de barras');
         return;
     }
     
+    // Solo buscar para editar si el usuario lo solicita explícitamente
     fetch(`../api/buscar_producto.php?codigo_barras=${encodeURIComponent(codigoBarras)}`)
         .then(response => response.json())
         .then(data => {
@@ -557,13 +552,12 @@ function buscarPorCodigoBarras() {
                     editarProducto(data.producto);
                 }
             } else {
-                alert('Producto no encontrado. Puedes registrarlo con este código de barras.');
+                // No mostrar alerta - simplemente continuar
                 document.getElementById('productoNombre').focus();
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Producto no encontrado. Puedes registrarlo con este código de barras.');
             document.getElementById('productoNombre').focus();
         });
 }
@@ -572,7 +566,7 @@ document.getElementById('modalProducto').addEventListener('hidden.bs.modal', fun
     limpiarFormulario();
 });
 
-// Auto-búsqueda al escanear código de barras (detecta Enter del escáner)
+// Reabrir modal para escaneo continuo
 document.addEventListener('DOMContentLoaded', function() {
     <?php if ($reabrir_modal && !empty($success)): ?>
     // Limpiar formulario y reabrir modal para escaneo continuo
@@ -584,12 +578,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 500);
     <?php endif; ?>
     
+    // Al escanear (Enter), pasar al siguiente campo sin buscar
     const codigoBarrasInput = document.getElementById('productoCodigoBarras');
     if (codigoBarrasInput) {
         codigoBarrasInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                buscarPorCodigoBarras();
+                document.getElementById('productoNombre').focus();
             }
         });
     }

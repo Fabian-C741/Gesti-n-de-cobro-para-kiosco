@@ -634,32 +634,27 @@ function buscarPorCodigoBarras(modo) {
     const codigoBarras = document.getElementById(`codigo_barras_${modo}`).value.trim();
     
     if (!codigoBarras) {
-        alert('Por favor ingresa un código de barras');
         return;
     }
     
-    // Buscar si ya existe el producto
+    // Solo buscar para editar si el usuario lo solicita explícitamente con el botón
     fetch(`../api/buscar_producto.php?codigo_barras=${encodeURIComponent(codigoBarras)}`)
         .then(response => response.json())
         .then(data => {
             if (data.success && data.producto) {
                 // Producto encontrado - preguntar si quiere editar
                 if (confirm(`El producto "${data.producto.nombre}" ya existe. ¿Deseas editarlo?`)) {
-                    // Cerrar modal de crear si está abierto
                     const modalCrear = bootstrap.Modal.getInstance(document.getElementById('modalCrear'));
                     if (modalCrear) modalCrear.hide();
                     editarProducto(data.producto);
                 }
             } else {
-                // Producto no existe - mantener código de barras y permitir crear
-                alert('Producto no encontrado. Puedes registrarlo con este código de barras.');
-                // Enfocar en el campo nombre para facilitar el registro
+                // No mostrar alerta - simplemente pasar al siguiente campo
                 document.getElementById('nombre_crear').focus();
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Producto no encontrado. Puedes registrarlo con este código de barras.');
             document.getElementById('nombre_crear').focus();
         });
 }
@@ -686,13 +681,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 500);
     <?php endif; ?>
     
-    // Auto-búsqueda al escanear código de barras (detecta Enter del escáner)
+    // Al escanear (Enter), pasar al siguiente campo sin buscar
     const codigoBarrasCrear = document.getElementById('codigo_barras_crear');
     if (codigoBarrasCrear) {
         codigoBarrasCrear.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                buscarPorCodigoBarras('crear');
+                document.getElementById('nombre_crear').focus();
             }
         });
     }
@@ -702,7 +697,7 @@ document.addEventListener('DOMContentLoaded', function() {
         codigoBarrasEditar.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                buscarPorCodigoBarras('edit');
+                document.getElementById('edit_nombre').focus();
             }
         });
     }
