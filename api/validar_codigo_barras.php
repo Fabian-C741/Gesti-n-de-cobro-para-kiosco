@@ -1,8 +1,14 @@
 <?php
-// Actualizado: 14/12/2025 15:35
-require_once '../config/config.php';
-require_once '../includes/Database.php';
+// Actualizado: 14/12/2025 15:40
 session_start();
+
+// Usar configuración de tenant si existe
+if (isset($_SESSION['tenant_id'])) {
+    require_once '../config/tenant_config.php';
+} else {
+    require_once '../config/config.php';
+}
+require_once '../includes/Database.php';
 
 header('Content-Type: application/json');
 
