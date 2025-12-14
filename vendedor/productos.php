@@ -16,6 +16,7 @@ $db = Database::getInstance()->getConnection();
 $usuario_id = $_SESSION['user_id'];
 $error = '';
 $success = '';
+$reabrir_modal = false; // Para mantener modal abierto en escaneo continuo
 
 // Crear directorio de uploads si no existe
 if (!file_exists(UPLOAD_DIR)) {
@@ -45,7 +46,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (empty($nombre) || $precio_venta <= 0) {
                 $error = 'El nombre y precio de venta son obligatorios';
             } else {
-                // Procesar imagen si se subió
+                // Validar código de barras duplicado (solo si se proporciona uno)
+                if (!empty($codigo_barras)) {
+                    $stmt_check = $db->prepare("SELECT id, nombre FROM productos WHERE codigo_barras = ? AND activo = 1" . ($action === 'editar' ? " AND id != ?" : ""));
+                    if ($action === 'editar') {
+                        $stmt_check->execute([$codigo_barras, $id]);
+                    } else {
+                        $stmt_check->execute([$codigo_barras]);
+                    }
+                    $producto_existente = $stmt_check->fetch();
+                    
+                    if ($producto_existente) {
+                        $error = "Ya existe un producto con este código de barras: \"{$producto_existente['nombre']}\"";
+                    }
+                }
+                
+                if (empty($error)) {
+                    // Procesar imagen si se subió
                 $imagen_nombre = '';
                 if (isset($_FILES['imagen']) && $_FILES['imagen']['error'] !== UPLOAD_ERR_NO_FILE) {
                     if ($_FILES['imagen']['error'] !== UPLOAD_ERR_OK) {
@@ -112,7 +129,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             }
                             
                             log_activity($db, $usuario_id, 'crear_producto', "Producto creado: $nombre");
-                            $success = 'Producto creado exitosamente';
+                            $success = 'Producto creado exitosamente. ¡Listo para escanear otro!';
+                            $reabrir_modal = true; // Mantener modal abierto para escaneo continuo
                         } else {
                             // Verificar que el producto pertenezca al usuario
                             $stmt = $db->prepare("SELECT imagen FROM productos WHERE id = ? AND usuario_id = ?");
@@ -156,6 +174,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
                     }
                 }
+                } // Cierre del if (empty($error)) de validación de código de barras
             }
         } elseif ($action === 'eliminar') {
             $id = intval($_POST['id'] ?? 0);
@@ -626,18 +645,68 @@ function buscarPorCodigoBarras(modo) {
             if (data.success && data.producto) {
                 // Producto encontrado - preguntar si quiere editar
                 if (confirm(`El producto "${data.producto.nombre}" ya existe. ¿Deseas editarlo?`)) {
+                    // Cerrar modal de crear si está abierto
+                    const modalCrear = bootstrap.Modal.getInstance(document.getElementById('modalCrear'));
+                    if (modalCrear) modalCrear.hide();
                     editarProducto(data.producto);
                 }
             } else {
                 // Producto no existe - mantener código de barras y permitir crear
                 alert('Producto no encontrado. Puedes registrarlo con este código de barras.');
+                // Enfocar en el campo nombre para facilitar el registro
+                document.getElementById('nombre_crear').focus();
             }
         })
         .catch(error => {
             console.error('Error:', error);
             alert('Producto no encontrado. Puedes registrarlo con este código de barras.');
+            document.getElementById('nombre_crear').focus();
         });
 }
+
+// Limpiar formulario de crear producto
+function limpiarFormularioCrear() {
+    const form = document.querySelector('#modalCrear form');
+    form.reset();
+    document.getElementById('preview_crear').style.display = 'none';
+    // Mantener checkbox activo marcado por defecto
+    document.getElementById('crear_activo').checked = true;
+}
+
+// Verificar si hay que reabrir el modal después de crear producto
+document.addEventListener('DOMContentLoaded', function() {
+    <?php if ($reabrir_modal && !empty($success)): ?>
+    // Limpiar formulario y reabrir modal para escaneo continuo
+    limpiarFormularioCrear();
+    const modalCrear = new bootstrap.Modal(document.getElementById('modalCrear'));
+    modalCrear.show();
+    // Enfocar en código de barras
+    setTimeout(function() {
+        document.getElementById('codigo_barras_crear').focus();
+    }, 500);
+    <?php endif; ?>
+    
+    // Auto-búsqueda al escanear código de barras (detecta Enter del escáner)
+    const codigoBarrasCrear = document.getElementById('codigo_barras_crear');
+    if (codigoBarrasCrear) {
+        codigoBarrasCrear.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                buscarPorCodigoBarras('crear');
+            }
+        });
+    }
+    
+    const codigoBarrasEditar = document.getElementById('edit_codigo_barras');
+    if (codigoBarrasEditar) {
+        codigoBarrasEditar.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                buscarPorCodigoBarras('edit');
+            }
+        });
+    }
+});
 </script>
 
 <?php include 'includes/footer.php'; ?>

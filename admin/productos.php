@@ -9,6 +9,7 @@ require_admin();
 $db = Database::getInstance()->getConnection();
 $error = '';
 $success = '';
+$reabrir_modal = false;
 
 // Procesar acciones
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -19,6 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         if ($action === 'crear') {
             $codigo = sanitize_input($_POST['codigo'] ?? '');
+            $codigo_barras = sanitize_input($_POST['codigo_barras'] ?? '');
             $nombre = sanitize_input($_POST['nombre']);
             $descripcion = sanitize_input($_POST['descripcion'] ?? '');
             $precio_compra = floatval($_POST['precio_compra'] ?? 0);
@@ -27,6 +29,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stock_minimo = intval($_POST['stock_minimo'] ?? 0);
             $categoria_id = !empty($_POST['categoria_id']) ? intval($_POST['categoria_id']) : null;
             
+            // Validar código de barras duplicado (solo si se proporciona uno)
+            if (!empty($codigo_barras)) {
+                $stmt_check = $db->prepare("SELECT id, nombre FROM productos WHERE codigo_barras = ? AND activo = 1");
+                $stmt_check->execute([$codigo_barras]);
+                $producto_existente = $stmt_check->fetch();
+                
+                if ($producto_existente) {
+                    $error = "Ya existe un producto con este código de barras: \"{$producto_existente['nombre']}\"";
+                }
+            }
+            
+            if (empty($error)) {
             // Manejo de imagen
             $imagen_nombre = '';
             if (isset($_FILES['imagen']) && $_FILES['imagen']['error'] !== UPLOAD_ERR_NO_FILE) {
@@ -73,35 +87,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($has_pv) {
                         $punto_venta_id = get_user_punto_venta_id();
                         $stmt = $db->prepare("
-                            INSERT INTO productos (codigo, nombre, descripcion, precio_compra, precio_venta, 
+                            INSERT INTO productos (codigo, codigo_barras, nombre, descripcion, precio_compra, precio_venta, 
                                                  stock, stock_minimo, categoria_id, usuario_id, imagen, punto_venta_id)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         ");
                         $stmt->execute([
-                            $codigo, $nombre, $descripcion, $precio_compra, $precio_venta,
+                            $codigo, $codigo_barras, $nombre, $descripcion, $precio_compra, $precio_venta,
                             $stock, $stock_minimo, $categoria_id, $_SESSION['user_id'], $imagen_nombre, $punto_venta_id
                         ]);
                     } else {
                         $stmt = $db->prepare("
-                            INSERT INTO productos (codigo, nombre, descripcion, precio_compra, precio_venta, 
+                            INSERT INTO productos (codigo, codigo_barras, nombre, descripcion, precio_compra, precio_venta, 
                                                  stock, stock_minimo, categoria_id, usuario_id, imagen)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         ");
                         $stmt->execute([
-                            $codigo, $nombre, $descripcion, $precio_compra, $precio_venta,
+                            $codigo, $codigo_barras, $nombre, $descripcion, $precio_compra, $precio_venta,
                             $stock, $stock_minimo, $categoria_id, $_SESSION['user_id'], $imagen_nombre
                         ]);
                     }
                     
                     log_activity($db, $_SESSION['user_id'], 'crear_producto', "Producto: $nombre");
-                    $success = 'Producto creado exitosamente';
+                    $success = 'Producto creado exitosamente. ¡Listo para escanear otro!';
+                    $reabrir_modal = true;
                 } catch (PDOException $e) {
                     $error = 'Error al crear el producto';
                 }
             }
+            } // Cierre del if de validación código de barras
         } elseif ($action === 'editar') {
             $id = intval($_POST['id']);
             $codigo = sanitize_input($_POST['codigo'] ?? '');
+            $codigo_barras = sanitize_input($_POST['codigo_barras'] ?? '');
             $nombre = sanitize_input($_POST['nombre']);
             $descripcion = sanitize_input($_POST['descripcion'] ?? '');
             $precio_compra = floatval($_POST['precio_compra'] ?? 0);
@@ -110,6 +127,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stock_minimo = intval($_POST['stock_minimo'] ?? 0);
             $categoria_id = !empty($_POST['categoria_id']) ? intval($_POST['categoria_id']) : null;
             
+            // Validar código de barras duplicado en edición (solo si se proporciona uno)
+            if (!empty($codigo_barras)) {
+                $stmt_check = $db->prepare("SELECT id, nombre FROM productos WHERE codigo_barras = ? AND activo = 1 AND id != ?");
+                $stmt_check->execute([$codigo_barras, $id]);
+                $producto_existente = $stmt_check->fetch();
+                
+                if ($producto_existente) {
+                    $error = "Ya existe un producto con este código de barras: \"{$producto_existente['nombre']}\"";
+                }
+            }
+            
+            if (empty($error)) {
             // Manejo de nueva imagen
             $imagen_nombre = '';
             if (isset($_FILES['imagen']) && $_FILES['imagen']['error'] !== UPLOAD_ERR_NO_FILE) {
@@ -162,24 +191,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         // Actualizar con nueva imagen
                         $stmt = $db->prepare("
                             UPDATE productos 
-                            SET codigo = ?, nombre = ?, descripcion = ?, precio_compra = ?, 
+                            SET codigo = ?, codigo_barras = ?, nombre = ?, descripcion = ?, precio_compra = ?, 
                                 precio_venta = ?, stock = ?, stock_minimo = ?, categoria_id = ?, imagen = ?
                             WHERE id = ?
                         ");
                         $stmt->execute([
-                            $codigo, $nombre, $descripcion, $precio_compra, $precio_venta,
+                            $codigo, $codigo_barras, $nombre, $descripcion, $precio_compra, $precio_venta,
                             $stock, $stock_minimo, $categoria_id, $imagen_nombre, $id
                         ]);
                     } else {
                         // Actualizar sin cambiar imagen
                         $stmt = $db->prepare("
                             UPDATE productos 
-                            SET codigo = ?, nombre = ?, descripcion = ?, precio_compra = ?, 
+                            SET codigo = ?, codigo_barras = ?, nombre = ?, descripcion = ?, precio_compra = ?, 
                                 precio_venta = ?, stock = ?, stock_minimo = ?, categoria_id = ?
                             WHERE id = ?
                         ");
                         $stmt->execute([
-                            $codigo, $nombre, $descripcion, $precio_compra, $precio_venta,
+                            $codigo, $codigo_barras, $nombre, $descripcion, $precio_compra, $precio_venta,
                             $stock, $stock_minimo, $categoria_id, $id
                         ]);
                     }
@@ -190,6 +219,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $error = 'Error al actualizar el producto';
                 }
             }
+            } // Cierre del if de validación código de barras en edición
         } elseif ($action === 'eliminar') {
             $id = intval($_POST['id']);
             
@@ -412,10 +442,23 @@ include 'includes/header.php';
                     
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Código</label>
-                            <input type="text" class="form-control" name="codigo" id="productoCodigo">
+                            <label class="form-label">Código de Barras</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" name="codigo_barras" id="productoCodigoBarras" placeholder="Escanea o escribe">
+                                <button type="button" class="btn btn-outline-secondary" onclick="buscarPorCodigoBarras()">
+                                    <i class="bi bi-search"></i>
+                                </button>
+                            </div>
+                            <small class="text-muted">Escanea con el lector o escribe manualmente</small>
                         </div>
                         <div class="col-md-6 mb-3">
+                            <label class="form-label">Código/SKU</label>
+                            <input type="text" class="form-control" name="codigo" id="productoCodigo">
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
                             <label class="form-label">Nombre *</label>
                             <input type="text" class="form-control" name="nombre" id="productoNombre" required>
                         </div>
@@ -477,6 +520,7 @@ function editarProducto(producto) {
     document.getElementById('modalProductoTitle').textContent = 'Editar Producto';
     document.getElementById('productoAction').value = 'editar';
     document.getElementById('productoId').value = producto.id;
+    document.getElementById('productoCodigoBarras').value = producto.codigo_barras || '';
     document.getElementById('productoCodigo').value = producto.codigo || '';
     document.getElementById('productoNombre').value = producto.nombre;
     document.getElementById('productoDescripcion').value = producto.descripcion || '';
@@ -489,11 +533,66 @@ function editarProducto(producto) {
     new bootstrap.Modal(document.getElementById('modalProducto')).show();
 }
 
-document.getElementById('modalProducto').addEventListener('hidden.bs.modal', function () {
+function limpiarFormulario() {
     document.getElementById('formProducto').reset();
     document.getElementById('modalProductoTitle').textContent = 'Nuevo Producto';
     document.getElementById('productoAction').value = 'crear';
     document.getElementById('productoId').value = '';
+    document.getElementById('productoCodigoBarras').value = '';
+}
+
+function buscarPorCodigoBarras() {
+    const codigoBarras = document.getElementById('productoCodigoBarras').value.trim();
+    
+    if (!codigoBarras) {
+        alert('Por favor ingresa un código de barras');
+        return;
+    }
+    
+    fetch(`../api/buscar_producto.php?codigo_barras=${encodeURIComponent(codigoBarras)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.producto) {
+                if (confirm(`El producto "${data.producto.nombre}" ya existe. ¿Deseas editarlo?`)) {
+                    editarProducto(data.producto);
+                }
+            } else {
+                alert('Producto no encontrado. Puedes registrarlo con este código de barras.');
+                document.getElementById('productoNombre').focus();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Producto no encontrado. Puedes registrarlo con este código de barras.');
+            document.getElementById('productoNombre').focus();
+        });
+}
+
+document.getElementById('modalProducto').addEventListener('hidden.bs.modal', function () {
+    limpiarFormulario();
+});
+
+// Auto-búsqueda al escanear código de barras (detecta Enter del escáner)
+document.addEventListener('DOMContentLoaded', function() {
+    <?php if ($reabrir_modal && !empty($success)): ?>
+    // Limpiar formulario y reabrir modal para escaneo continuo
+    limpiarFormulario();
+    const modal = new bootstrap.Modal(document.getElementById('modalProducto'));
+    modal.show();
+    setTimeout(function() {
+        document.getElementById('productoCodigoBarras').focus();
+    }, 500);
+    <?php endif; ?>
+    
+    const codigoBarrasInput = document.getElementById('productoCodigoBarras');
+    if (codigoBarrasInput) {
+        codigoBarrasInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                buscarPorCodigoBarras();
+            }
+        });
+    }
 });
 </script>
 
