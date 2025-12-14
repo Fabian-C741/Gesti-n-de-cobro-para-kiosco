@@ -540,14 +540,12 @@ function limpiarFormulario() {
     document.getElementById('productoNombre').disabled = false;
 }
 
-// Validar código de barras con XMLHttpRequest (más confiable)
+// Validar código usando buscar_producto.php que SÍ FUNCIONA
 function validarCodigo() {
     const input = document.getElementById('productoCodigoBarras');
     const nombreInput = document.getElementById('productoNombre');
     const codigo = input.value.trim();
     const productoId = document.getElementById('productoId').value || 0;
-    
-    console.log('Validando:', codigo);
     
     if (!codigo) {
         nombreInput.focus();
@@ -555,27 +553,26 @@ function validarCodigo() {
     }
     
     const xhr = new XMLHttpRequest();
-    const url = '../api/validar_codigo_barras.php?codigo=' + encodeURIComponent(codigo) + '&excluir_id=' + productoId;
-    console.log('URL:', url);
-    
-    xhr.open('GET', url, true);
+    // Usar buscar_producto.php que ya funciona
+    xhr.open('GET', '../api/buscar_producto.php?codigo_barras=' + encodeURIComponent(codigo), true);
     xhr.timeout = 5000;
     
     xhr.onload = function() {
-        console.log('Status:', xhr.status, 'Response:', xhr.responseText);
         if (xhr.status === 200) {
             try {
                 const data = JSON.parse(xhr.responseText);
-                console.log('Data:', data);
-                if (data.existe) {
-                    alert('¡DUPLICADO! El producto "' + data.nombre + '" ya tiene ese código.');
-                    input.value = '';
-                    input.focus();
-                } else {
-                    nombreInput.focus();
+                // Si encontró producto Y no es el mismo que estamos editando
+                if (data.success && data.producto) {
+                    if (productoId == 0 || data.producto.id != productoId) {
+                        alert('¡DUPLICADO! El producto "' + data.producto.nombre + '" ya tiene ese código de barras.');
+                        input.value = '';
+                        input.focus();
+                        return;
+                    }
                 }
+                // No existe o es el mismo - continuar
+                nombreInput.focus();
             } catch(e) {
-                console.log('Error parse:', e);
                 nombreInput.focus();
             }
         } else {
@@ -583,16 +580,8 @@ function validarCodigo() {
         }
     };
     
-    xhr.onerror = function() {
-        console.log('Error XHR');
-        nombreInput.focus();
-    };
-    
-    xhr.ontimeout = function() {
-        console.log('Timeout');
-        nombreInput.focus();
-    };
-    
+    xhr.onerror = function() { nombreInput.focus(); };
+    xhr.ontimeout = function() { nombreInput.focus(); };
     xhr.send();
 }
 
