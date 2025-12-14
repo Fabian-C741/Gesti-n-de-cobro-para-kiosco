@@ -631,40 +631,45 @@ function eliminarProducto(id, nombre) {
     new bootstrap.Modal(document.getElementById('modalEliminar')).show();
 }
 
-// Validar código de barras INMEDIATAMENTE al escanear
-async function validarCodigoBarrasInstantaneo(modo, productoId) {
-    const inputId = modo === 'crear' ? 'codigo_barras_crear' : 'edit_codigo_barras';
-    const nombreId = modo === 'crear' ? 'nombre_crear' : 'edit_nombre';
+// Variables para evitar validaciones duplicadas
+let ultimoCodigoValidado = '';
+let validando = false;
+
+// Validar código de barras contra la base de datos
+async function validarCodigo(inputId, nombreId, productoId) {
     const input = document.getElementById(inputId);
-    const codigoBarras = input.value.trim();
+    const codigo = input.value.trim();
     
-    if (!codigoBarras) {
-        document.getElementById(nombreId).focus();
-        return;
-    }
+    if (validando || codigo === ultimoCodigoValidado) return;
+    
+    validando = true;
     
     try {
-        const response = await fetch(`../api/buscar_producto.php?codigo_barras=${encodeURIComponent(codigoBarras)}`);
+        const response = await fetch(`../api/buscar_producto.php?codigo_barras=${encodeURIComponent(codigo)}`);
         const data = await response.json();
         
         if (data.success && data.producto) {
             // Si estamos editando el mismo producto, permitir
             if (productoId && data.producto.id == productoId) {
+                ultimoCodigoValidado = codigo;
+                validando = false;
                 document.getElementById(nombreId).focus();
                 return;
             }
-            // DUPLICADO - alertar, limpiar y volver al campo
-            alert('⚠️ CÓDIGO DUPLICADO\n\nYa existe: "' + data.producto.nombre + '"\n\nEscanea otro código.');
+            // EXISTE - alertar y limpiar
+            alert('El producto "' + data.producto.nombre + '" ya existe con ese código.');
             input.value = '';
+            ultimoCodigoValidado = '';
             input.focus();
         } else {
-            // Código nuevo - pasar al nombre
+            // NO EXISTE - avanzar
+            ultimoCodigoValidado = codigo;
             document.getElementById(nombreId).focus();
         }
     } catch (error) {
         console.error('Error:', error);
-        document.getElementById(nombreId).focus();
     }
+    validando = false;
 }
 
 // Limpiar formulario de crear producto
@@ -673,6 +678,7 @@ function limpiarFormularioCrear() {
     form.reset();
     document.getElementById('preview_crear').style.display = 'none';
     document.getElementById('crear_activo').checked = true;
+    ultimoCodigoValidado = '';
 }
 
 // Inicialización
@@ -689,30 +695,55 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 500);
     <?php endif; ?>
     
-    // Evento en código de barras crear - cuando el escáner envía Enter
+    // Evento en código de barras crear
     const codigoBarrasCrear = document.getElementById('codigo_barras_crear');
     if (codigoBarrasCrear) {
+        codigoBarrasCrear.addEventListener('input', function() {
+            const codigo = this.value.trim();
+            if (codigo.length >= 8 && codigo !== ultimoCodigoValidado) {
+                validarCodigo('codigo_barras_crear', 'nombre_crear', null);
+            }
+        });
         codigoBarrasCrear.addEventListener('keydown', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                e.stopPropagation();
-                validarCodigoBarrasInstantaneo('crear', null);
+                const codigo = this.value.trim();
+                if (codigo.length >= 1) {
+                    validarCodigo('codigo_barras_crear', 'nombre_crear', null);
+                }
             }
         });
     }
     
-    // Evento en código de barras editar - cuando el escáner envía Enter
+    // Evento en código de barras editar
     const codigoBarrasEditar = document.getElementById('edit_codigo_barras');
     if (codigoBarrasEditar) {
+        codigoBarrasEditar.addEventListener('input', function() {
+            const codigo = this.value.trim();
+            const editId = document.getElementById('edit_id').value;
+            if (codigo.length >= 8 && codigo !== ultimoCodigoValidado) {
+                validarCodigo('edit_codigo_barras', 'edit_nombre', editId);
+            }
+        });
         codigoBarrasEditar.addEventListener('keydown', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                e.stopPropagation();
+                const codigo = this.value.trim();
                 const editId = document.getElementById('edit_id').value;
-                validarCodigoBarrasInstantaneo('edit', editId);
+                if (codigo.length >= 1) {
+                    validarCodigo('edit_codigo_barras', 'edit_nombre', editId);
+                }
             }
         });
     }
+    
+    // Limpiar al cerrar modales
+    document.getElementById('modalCrear').addEventListener('hidden.bs.modal', function() {
+        ultimoCodigoValidado = '';
+    });
+    document.getElementById('modalEditar').addEventListener('hidden.bs.modal', function() {
+        ultimoCodigoValidado = '';
+    });
 });
 </script>
 
