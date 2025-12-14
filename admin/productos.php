@@ -547,19 +547,26 @@ function validarCodigo() {
     const codigo = input.value.trim();
     const productoId = document.getElementById('productoId').value || 0;
     
+    console.log('Validando:', codigo);
+    
     if (!codigo) {
         nombreInput.focus();
         return;
     }
     
     const xhr = new XMLHttpRequest();
-    xhr.open('GET', '../api/validar_codigo_barras.php?codigo=' + encodeURIComponent(codigo) + '&excluir_id=' + productoId, true);
+    const url = '../api/validar_codigo_barras.php?codigo=' + encodeURIComponent(codigo) + '&excluir_id=' + productoId;
+    console.log('URL:', url);
+    
+    xhr.open('GET', url, true);
     xhr.timeout = 5000;
     
     xhr.onload = function() {
+        console.log('Status:', xhr.status, 'Response:', xhr.responseText);
         if (xhr.status === 200) {
             try {
                 const data = JSON.parse(xhr.responseText);
+                console.log('Data:', data);
                 if (data.existe) {
                     alert('¡DUPLICADO! El producto "' + data.nombre + '" ya tiene ese código.');
                     input.value = '';
@@ -568,6 +575,7 @@ function validarCodigo() {
                     nombreInput.focus();
                 }
             } catch(e) {
+                console.log('Error parse:', e);
                 nombreInput.focus();
             }
         } else {
@@ -576,10 +584,12 @@ function validarCodigo() {
     };
     
     xhr.onerror = function() {
+        console.log('Error XHR');
         nombreInput.focus();
     };
     
     xhr.ontimeout = function() {
+        console.log('Timeout');
         nombreInput.focus();
     };
     
