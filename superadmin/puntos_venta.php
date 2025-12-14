@@ -6,13 +6,24 @@ verificarSuperAdmin();
 $error = '';
 $exito = '';
 
-// Obtener lista de tenants para el filtro
-$stmt = $conn_master->prepare("SELECT id, nombre FROM tenants WHERE activo = 1 ORDER BY nombre");
+// Obtener lista de tenants para el filtro (con estado)
+$stmt = $conn_master->prepare("SELECT id, nombre, estado FROM tenants WHERE activo = 1 ORDER BY nombre");
 $stmt->execute();
 $tenants = $stmt->fetchAll();
 
 // Filtro por tenant
 $tenant_id = isset($_GET['tenant_id']) ? intval($_GET['tenant_id']) : 0;
+
+// Obtener estado del cliente seleccionado
+$estado_cliente = 'activo';
+if ($tenant_id > 0) {
+    foreach ($tenants as $t) {
+        if ($t['id'] == $tenant_id) {
+            $estado_cliente = $t['estado'];
+            break;
+        }
+    }
+}
 
 // Procesar acciones
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -276,19 +287,20 @@ $page_title = 'Gestión de Puntos de Venta';
                             <td><?= htmlspecialchars($pv['telefono'] ?? '-') ?></td>
                             <td><span class="badge bg-info"><?= $pv['total_usuarios'] ?></span></td>
                             <td>
-                                <?php if ($pv['activo']): ?>
-                                    <span class="badge bg-success">Activo</span>
-                                <?php else: ?>
-                                    <span class="badge bg-secondary">Inactivo</span>
-                                <?php endif; ?>
+                                <?php 
+                                $badge_class = match($estado_cliente) {
+                                    'activo' => 'bg-success',
+                                    'suspendido' => 'bg-warning text-dark',
+                                    'vencido' => 'bg-danger',
+                                    'cancelado' => 'bg-secondary',
+                                    default => 'bg-secondary'
+                                };
+                                ?>
+                                <span class="badge <?= $badge_class ?>"><?= ucfirst($estado_cliente) ?></span>
                             </td>
                             <td>
                                 <button class="btn btn-sm btn-outline-primary" onclick="editarPuntoVenta(<?= htmlspecialchars(json_encode($pv)) ?>)">
                                     <i class="bi bi-pencil"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-<?= $pv['activo'] ? 'warning' : 'success' ?>" 
-                                        onclick="toggleEstado(<?= $pv['id'] ?>, <?= $pv['activo'] ? 0 : 1 ?>)">
-                                    <i class="bi bi-<?= $pv['activo'] ? 'pause' : 'play' ?>-circle"></i>
                                 </button>
                             </td>
                         </tr>
@@ -399,14 +411,6 @@ $page_title = 'Gestión de Puntos de Venta';
     </div>
 </div>
 
-<!-- Form oculto para toggle estado de punto de venta -->
-<form id="formToggle" method="POST" style="display: none;">
-    <input type="hidden" name="action" value="toggle_estado">
-    <input type="hidden" name="tenant_id" value="<?= $tenant_id ?>">
-    <input type="hidden" name="id" id="toggle_id">
-    <input type="hidden" name="estado" id="toggle_estado">
-</form>
-
 <script>
 function editarPuntoVenta(pv) {
     document.getElementById('edit_id').value = pv.id;
@@ -417,15 +421,7 @@ function editarPuntoVenta(pv) {
     
     new bootstrap.Modal(document.getElementById('modalEditar')).show();
 }
-
-function toggleEstado(id, estado) {
-    const accion = estado ? 'activar' : 'desactivar';
-    if (confirm(`¿Está seguro de ${accion} este punto de venta?`)) {
-        document.getElementById('toggle_id').value = id;
-        document.getElementById('toggle_estado').value = estado;
-        document.getElementById('formToggle').submit();
-    }
-}
+</script>
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
