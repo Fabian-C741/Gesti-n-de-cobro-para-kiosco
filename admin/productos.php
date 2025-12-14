@@ -691,16 +691,44 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Validar antes de enviar el formulario
+    // Validar antes de enviar el formulario - BLOQUEO FINAL
     const formProducto = document.getElementById('formProducto');
     if (formProducto) {
-        formProducto.addEventListener('submit', function(e) {
+        formProducto.addEventListener('submit', async function(e) {
             const codigoBarras = document.getElementById('productoCodigoBarras').value.trim();
-            if (codigoBarras && !codigoBarrasValidado) {
-                e.preventDefault();
-                alert('Por favor espera mientras se valida el código de barras');
-                validarCodigoBarras();
-                return false;
+            const productoId = document.getElementById('productoId').value;
+            
+            if (!codigoBarras) {
+                return true; // Sin código, permitir
+            }
+            
+            // SIEMPRE verificar antes de enviar
+            e.preventDefault();
+            
+            try {
+                const response = await fetch(`../api/buscar_producto.php?codigo_barras=${encodeURIComponent(codigoBarras)}`);
+                const data = await response.json();
+                
+                if (data.success && data.producto) {
+                    // Si es el mismo producto (editando), permitir
+                    if (productoId && data.producto.id == productoId) {
+                        formProducto.submit();
+                        return;
+                    }
+                    // DUPLICADO - bloquear
+                    alert('⚠️ CÓDIGO DE BARRAS DUPLICADO\n\nYa existe el producto: "' + data.producto.nombre + '"\n\nNo se puede guardar.');
+                    document.getElementById('productoCodigoBarras').value = '';
+                    document.getElementById('productoCodigoBarras').focus();
+                    bloquearCampos();
+                    return false;
+                } else {
+                    // No existe - enviar formulario
+                    formProducto.submit();
+                }
+            } catch (error) {
+                console.error('Error validando:', error);
+                // En caso de error de red, enviar igual (la validación del servidor lo atrapará)
+                formProducto.submit();
             }
         });
     }

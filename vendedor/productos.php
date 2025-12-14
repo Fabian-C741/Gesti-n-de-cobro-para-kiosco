@@ -842,16 +842,78 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Validar antes de enviar formulario crear
+    // Validar antes de enviar formulario crear - BLOQUEO FINAL
     const formCrear = document.querySelector('#modalCrear form');
     if (formCrear) {
-        formCrear.addEventListener('submit', function(e) {
+        formCrear.addEventListener('submit', async function(e) {
             const codigoBarras = document.getElementById('codigo_barras_crear').value.trim();
-            if (codigoBarras && !codigoBarrasValidado) {
-                e.preventDefault();
-                alert('Por favor espera mientras se valida el código de barras');
-                validarCodigoBarras('crear', null);
-                return false;
+            
+            if (!codigoBarras) {
+                return true; // Sin código, permitir
+            }
+            
+            // SIEMPRE verificar antes de enviar
+            e.preventDefault();
+            
+            try {
+                const response = await fetch(`../api/buscar_producto.php?codigo_barras=${encodeURIComponent(codigoBarras)}`);
+                const data = await response.json();
+                
+                if (data.success && data.producto) {
+                    // DUPLICADO - bloquear
+                    alert('⚠️ CÓDIGO DE BARRAS DUPLICADO\n\nYa existe el producto: "' + data.producto.nombre + '"\n\nNo se puede guardar.');
+                    document.getElementById('codigo_barras_crear').value = '';
+                    document.getElementById('codigo_barras_crear').focus();
+                    bloquearCamposCrear();
+                    return false;
+                } else {
+                    // No existe - enviar formulario
+                    formCrear.submit();
+                }
+            } catch (error) {
+                console.error('Error validando:', error);
+                formCrear.submit();
+            }
+        });
+    }
+    
+    // Validar antes de enviar formulario editar - BLOQUEO FINAL
+    const formEditar = document.querySelector('#modalEditar form');
+    if (formEditar) {
+        formEditar.addEventListener('submit', async function(e) {
+            const codigoBarras = document.getElementById('edit_codigo_barras').value.trim();
+            const productoId = document.getElementById('edit_id').value;
+            
+            if (!codigoBarras) {
+                return true; // Sin código, permitir
+            }
+            
+            // SIEMPRE verificar antes de enviar
+            e.preventDefault();
+            
+            try {
+                const response = await fetch(`../api/buscar_producto.php?codigo_barras=${encodeURIComponent(codigoBarras)}`);
+                const data = await response.json();
+                
+                if (data.success && data.producto) {
+                    // Si es el mismo producto (editando), permitir
+                    if (productoId && data.producto.id == productoId) {
+                        formEditar.submit();
+                        return;
+                    }
+                    // DUPLICADO - bloquear
+                    alert('⚠️ CÓDIGO DE BARRAS DUPLICADO\n\nYa existe el producto: "' + data.producto.nombre + '"\n\nNo se puede guardar.');
+                    document.getElementById('edit_codigo_barras').value = '';
+                    document.getElementById('edit_codigo_barras').focus();
+                    bloquearCamposEditar();
+                    return false;
+                } else {
+                    // No existe - enviar formulario
+                    formEditar.submit();
+                }
+            } catch (error) {
+                console.error('Error validando:', error);
+                formEditar.submit();
             }
         });
     }
