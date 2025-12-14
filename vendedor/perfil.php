@@ -19,10 +19,12 @@ $mensaje = '';
 $tipo_mensaje = '';
 
 // Obtener datos del usuario
-$query = "SELECT u.*,
+$query = "SELECT u.*, pv.nombre as punto_venta_nombre, s.nombre as sucursal_nombre,
           (SELECT COUNT(*) FROM ventas WHERE usuario_id = u.id) as total_ventas,
           (SELECT COALESCE(SUM(total), 0) FROM ventas WHERE usuario_id = u.id) as ventas_total
           FROM usuarios u
+          LEFT JOIN puntos_venta pv ON u.punto_venta_id = pv.id
+          LEFT JOIN sucursales s ON pv.sucursal_id = s.id
           WHERE u.id = ?";
 $stmt = $db->prepare($query);
 $stmt->execute([$_SESSION['user_id']]);

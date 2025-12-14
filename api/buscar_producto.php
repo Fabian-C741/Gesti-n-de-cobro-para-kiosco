@@ -14,6 +14,7 @@ if (!isset($_SESSION['user_id'])) {
 
 $db = Database::getInstance()->getConnection();
 $usuario_id = $_SESSION['user_id'];
+$pv_id = $_SESSION['punto_venta_id'] ?? null;
 
 // Obtener parámetro de búsqueda
 $codigo_barras = $_GET['codigo_barras'] ?? '';
@@ -24,15 +25,26 @@ if (empty($codigo_barras)) {
 }
 
 try {
-    // Buscar producto por código de barras
-    $stmt = $db->prepare("
-        SELECT p.*, c.nombre as categoria_nombre
-        FROM productos p
-        LEFT JOIN categorias c ON p.categoria_id = c.id
-        WHERE p.codigo_barras = ? AND p.usuario_id = ? AND p.activo = 1
-        LIMIT 1
-    ");
-    $stmt->execute([$codigo_barras, $usuario_id]);
+    // Buscar producto por código de barras (filtrado por punto de venta)
+    if ($pv_id) {
+        $stmt = $db->prepare("
+            SELECT p.*, c.nombre as categoria_nombre
+            FROM productos p
+            LEFT JOIN categorias c ON p.categoria_id = c.id
+            WHERE p.codigo_barras = ? AND (p.punto_venta_id = ? OR p.punto_venta_id IS NULL) AND p.activo = 1
+            LIMIT 1
+        ");
+        $stmt->execute([$codigo_barras, $pv_id]);
+    } else {
+        $stmt = $db->prepare("
+            SELECT p.*, c.nombre as categoria_nombre
+            FROM productos p
+            LEFT JOIN categorias c ON p.categoria_id = c.id
+            WHERE p.codigo_barras = ? AND p.usuario_id = ?
+            LIMIT 1
+        ");
+        $stmt->execute([$codigo_barras, $usuario_id]);
+    }
     $producto = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if ($producto) {

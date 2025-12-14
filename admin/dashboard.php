@@ -12,45 +12,80 @@ verificarTenantActivo();
 
 $db = Database::getInstance()->getConnection();
 
+// Obtener punto de venta del usuario (puede ser null)
+$pv_id = get_user_punto_venta_id();
+
+// Verificar si la columna punto_venta_id existe en las tablas
+$has_pv_column = column_exists($db, 'productos', 'punto_venta_id');
+
 // Obtener estadísticas generales
 $stats_ventas = get_sales_stats($db);
 
 // Total usuarios
 try {
-    $stmt = $db->query("SELECT COUNT(*) as total FROM usuarios WHERE user_rol = 'vendedor'");
+    if ($pv_id && $has_pv_column) {
+        $stmt = $db->prepare("SELECT COUNT(*) as total FROM usuarios WHERE user_rol = 'vendedor' AND (punto_venta_id = ? OR punto_venta_id IS NULL)");
+        $stmt->execute([$pv_id]);
+    } else {
+        $stmt = $db->query("SELECT COUNT(*) as total FROM usuarios WHERE user_rol = 'vendedor'");
+    }
     $total_usuarios = $stmt->fetch()['total'];
 } catch (PDOException $e) {
-    $total_usuarios = 0;
+    $stmt = $db->query("SELECT COUNT(*) as total FROM usuarios WHERE user_rol = 'vendedor'");
+    $total_usuarios = $stmt->fetch()['total'];
 }
 
 // Total productos
 try {
-    $stmt = $db->query("SELECT COUNT(*) as total FROM productos WHERE activo = 1");
+    if ($pv_id && $has_pv_column) {
+        $stmt = $db->prepare("SELECT COUNT(*) as total FROM productos WHERE activo = 1 AND (punto_venta_id = ? OR punto_venta_id IS NULL)");
+        $stmt->execute([$pv_id]);
+    } else {
+        $stmt = $db->query("SELECT COUNT(*) as total FROM productos WHERE activo = 1");
+    }
     $total_productos = $stmt->fetch()['total'];
 } catch (PDOException $e) {
-    $total_productos = 0;
+    $stmt = $db->query("SELECT COUNT(*) as total FROM productos WHERE activo = 1");
+    $total_productos = $stmt->fetch()['total'];
 }
 
 // Productos con stock bajo
 try {
-    $stmt = $db->query("SELECT COUNT(*) as total FROM productos WHERE stock <= stock_minimo AND activo = 1");
+    if ($pv_id && $has_pv_column) {
+        $stmt = $db->prepare("SELECT COUNT(*) as total FROM productos WHERE stock <= stock_minimo AND activo = 1 AND (punto_venta_id = ? OR punto_venta_id IS NULL)");
+        $stmt->execute([$pv_id]);
+    } else {
+        $stmt = $db->query("SELECT COUNT(*) as total FROM productos WHERE stock <= stock_minimo AND activo = 1");
+    }
     $stock_bajo = $stmt->fetch()['total'];
 } catch (PDOException $e) {
-    $stock_bajo = 0;
+    $stmt = $db->query("SELECT COUNT(*) as total FROM productos WHERE stock <= stock_minimo AND activo = 1");
+    $stock_bajo = $stmt->fetch()['total'];
 }
 
 // Ventas del día
 $hoy = date('Y-m-d');
 try {
-    $stmt = $db->prepare("
-        SELECT COUNT(*) as total, COALESCE(SUM(total), 0) as monto 
-        FROM ventas 
-        WHERE DATE(fecha_venta) = ? AND estado = 'completada'
-    ");
-    $stmt->execute([$hoy]);
+    if ($pv_id && $has_pv_column) {
+        $stmt = $db->prepare("
+            SELECT COUNT(*) as total, COALESCE(SUM(total), 0) as monto 
+            FROM ventas 
+            WHERE DATE(fecha_venta) = ? AND estado = 'completada' AND (punto_venta_id = ? OR punto_venta_id IS NULL)
+        ");
+        $stmt->execute([$hoy, $pv_id]);
+    } else {
+        $stmt = $db->prepare("
+            SELECT COUNT(*) as total, COALESCE(SUM(total), 0) as monto 
+            FROM ventas 
+            WHERE DATE(fecha_venta) = ? AND estado = 'completada'
+        ");
+        $stmt->execute([$hoy]);
+    }
     $ventas_hoy = $stmt->fetch();
 } catch (PDOException $e) {
-    $ventas_hoy = ['total' => 0, 'monto' => 0];
+    $stmt = $db->prepare("SELECT COUNT(*) as total, COALESCE(SUM(total), 0) as monto FROM ventas WHERE DATE(fecha_venta) = ? AND estado = 'completada'");
+    $stmt->execute([$hoy]);
+    $ventas_hoy = $stmt->fetch();
 }
 
 // Top 5 productos más vendidos
