@@ -547,6 +547,8 @@ async function validarCodigo() {
     const codigo = input.value.trim();
     const productoId = document.getElementById('productoId').value || 0;
     
+    console.log('Validando código:', codigo);
+    
     if (!codigo) {
         nombreInput.disabled = false;
         return;
@@ -556,8 +558,10 @@ async function validarCodigo() {
     
     try {
         const url = `../api/validar_codigo_barras.php?codigo=${encodeURIComponent(codigo)}&excluir_id=${productoId}`;
+        console.log('URL:', url);
         const response = await fetch(url);
         const data = await response.json();
+        console.log('Respuesta:', data);
         
         if (data.existe) {
             alert('El producto "' + data.nombre + '" ya existe con ese código.');
