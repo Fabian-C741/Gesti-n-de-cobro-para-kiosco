@@ -1,13 +1,20 @@
 <?php
+// Suprimir warnings y limpiar output
+error_reporting(0);
+ob_start();
+
 session_start();
 
 // Usar configuración de tenant si existe
 if (isset($_SESSION['tenant_id'])) {
-    require_once '../config/tenant_config.php';
+    @require_once '../config/tenant_config.php';
 } else {
-    require_once '../config/config.php';
+    @require_once '../config/config.php';
 }
-require_once '../includes/Database.php';
+@require_once '../includes/Database.php';
+
+// Limpiar cualquier output previo (warnings)
+ob_end_clean();
 
 header('Content-Type: application/json');
 
