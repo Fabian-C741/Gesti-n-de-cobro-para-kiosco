@@ -21,6 +21,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['tenant_id'])) {
     
     if (!$tenant) {
         $error = 'Cliente no encontrado';
+    } elseif ($tenant['estado'] === 'suspendido') {
+        $error = 'Este cliente está SUSPENDIDO. Active el cliente primero desde la gestión de clientes si desea acceder.';
+    } elseif ($tenant['estado'] === 'cancelado') {
+        $error = 'Este cliente está CANCELADO y no puede accederse.';
+    } elseif ($tenant['estado'] === 'vencido') {
+        $error = 'Este cliente tiene la suscripción VENCIDA. Registre un pago o active el cliente primero.';
+    } elseif (!$tenant['activo']) {
+        $error = 'Este cliente está DESACTIVADO permanentemente.';
     } else {
         try {
             // Conectar a la base de datos del tenant
