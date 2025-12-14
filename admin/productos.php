@@ -535,59 +535,90 @@ function limpiarFormulario() {
     document.getElementById('productoAction').value = 'crear';
     document.getElementById('productoId').value = '';
     document.getElementById('productoCodigoBarras').value = '';
+    desbloquearCampos();
 }
 
 // Variable global para controlar si el código está validado
 let codigoBarrasValidado = false;
+let timerValidacion = null;
+
+// Bloquear todos los campos excepto código de barras
+function bloquearCampos() {
+    const campos = ['productoNombre', 'productoDescripcion', 'productoPrecioCompra', 
+                    'productoPrecioVenta', 'productoStock', 'productoStockMinimo', 'productoCategoria'];
+    campos.forEach(id => {
+        const campo = document.getElementById(id);
+        if (campo) {
+            campo.disabled = true;
+            campo.style.backgroundColor = '#f0f0f0';
+        }
+    });
+    const btnGuardar = document.querySelector('#formProducto button[type="submit"]');
+    if (btnGuardar) {
+        btnGuardar.disabled = true;
+    }
+}
+
+// Desbloquear todos los campos
+function desbloquearCampos() {
+    const campos = ['productoNombre', 'productoDescripcion', 'productoPrecioCompra', 
+                    'productoPrecioVenta', 'productoStock', 'productoStockMinimo', 'productoCategoria'];
+    campos.forEach(id => {
+        const campo = document.getElementById(id);
+        if (campo) {
+            campo.disabled = false;
+            campo.style.backgroundColor = '';
+        }
+    });
+    const btnGuardar = document.querySelector('#formProducto button[type="submit"]');
+    if (btnGuardar) {
+        btnGuardar.disabled = false;
+    }
+}
 
 // Validar código de barras - BLOQUEA si ya existe
 function validarCodigoBarras() {
     const codigoBarras = document.getElementById('productoCodigoBarras').value.trim();
     const productoId = document.getElementById('productoId').value;
     
-    console.log('Validando código de barras:', codigoBarras, 'ProductoId:', productoId);
-    
+    // Si no hay código, desbloquear (producto sin código de barras)
     if (!codigoBarras) {
         codigoBarrasValidado = true;
+        desbloquearCampos();
         return;
     }
     
-    // Marcar como no validado mientras se verifica
+    // Marcar como no validado y bloquear mientras se verifica
     codigoBarrasValidado = false;
+    bloquearCampos();
     
-    const apiUrl = `../api/buscar_producto.php?codigo_barras=${encodeURIComponent(codigoBarras)}`;
-    console.log('Llamando API:', apiUrl);
-    
-    fetch(apiUrl)
-        .then(response => {
-            console.log('Response status:', response.status);
-            return response.json();
-        })
+    fetch(`../api/buscar_producto.php?codigo_barras=${encodeURIComponent(codigoBarras)}`)
+        .then(response => response.json())
         .then(data => {
-            console.log('Respuesta API:', data);
             if (data.success && data.producto) {
                 // Si estamos editando el mismo producto, permitir
                 if (productoId && data.producto.id == productoId) {
-                    console.log('Es el mismo producto, permitir editar');
                     codigoBarrasValidado = true;
+                    desbloquearCampos();
                     return;
                 }
                 // Código ya existe - alertar y limpiar
-                console.log('CÓDIGO DUPLICADO DETECTADO');
-                alert('⚠️ El código de barras ya existe.\n\nProducto: "' + data.producto.nombre + '"\n\nNo se puede usar este código.');
+                alert('⚠️ CÓDIGO DE BARRAS DUPLICADO\n\nYa existe el producto: "' + data.producto.nombre + '"\n\nEscanea otro código.');
                 document.getElementById('productoCodigoBarras').value = '';
                 document.getElementById('productoCodigoBarras').focus();
                 codigoBarrasValidado = false;
+                // Mantener campos bloqueados
             } else {
                 // Código no existe - permitir avanzar
-                console.log('Código nuevo, permitir avanzar');
                 codigoBarrasValidado = true;
+                desbloquearCampos();
                 document.getElementById('productoNombre').focus();
             }
         })
         .catch(error => {
-            console.error('Error en fetch:', error);
-            codigoBarrasValidado = true; // En caso de error, permitir continuar
+            console.error('Error:', error);
+            codigoBarrasValidado = true;
+            desbloquearCampos();
         });
 }
 
@@ -612,30 +643,52 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Evento en el campo de código de barras
     const codigoBarrasInput = document.getElementById('productoCodigoBarras');
-    console.log('Buscando campo código de barras:', codigoBarrasInput);
     if (codigoBarrasInput) {
-        console.log('Campo encontrado, agregando eventos...');
-        // Al presionar Enter (escáner envía Enter)
+        // Validación automática mientras escribe (con delay)
+        codigoBarrasInput.addEventListener('input', function() {
+            const valor = this.value.trim();
+            
+            // Si borra el código, desbloquear
+            if (!valor) {
+                codigoBarrasValidado = true;
+                desbloquearCampos();
+                return;
+            }
+            
+            // Bloquear campos mientras tiene código sin validar
+            bloquearCampos();
+            codigoBarrasValidado = false;
+            
+            // Cancelar validación anterior
+            if (timerValidacion) clearTimeout(timerValidacion);
+            
+            // Validar después de 500ms sin teclear (o inmediatamente si es código largo)
+            if (valor.length >= 8) {
+                // Código de barras típico (EAN-8, EAN-13, etc.) - validar casi inmediato
+                timerValidacion = setTimeout(validarCodigoBarras, 300);
+            } else if (valor.length >= 3) {
+                // Código corto - esperar un poco más
+                timerValidacion = setTimeout(validarCodigoBarras, 800);
+            }
+        });
+        
+        // Al presionar Enter (escáner envía Enter) - validar inmediatamente
         codigoBarrasInput.addEventListener('keydown', function(e) {
-            console.log('Tecla presionada:', e.key);
             if (e.key === 'Enter') {
-                console.log('ENTER detectado, validando...');
                 e.preventDefault();
                 e.stopPropagation();
+                if (timerValidacion) clearTimeout(timerValidacion);
                 validarCodigoBarras();
             }
         });
         
-        // Al salir del campo
+        // Al salir del campo - validar si no está validado
         codigoBarrasInput.addEventListener('blur', function() {
-            console.log('BLUR detectado, valor:', this.value);
-            if (this.value.trim().length >= 3) {
-                console.log('Validando por blur...');
+            if (this.value.trim() && !codigoBarrasValidado) {
+                if (timerValidacion) clearTimeout(timerValidacion);
                 validarCodigoBarras();
             }
         });
-    } else {
-        console.error('NO SE ENCONTRÓ EL CAMPO productoCodigoBarras');
     }
     
     // Validar antes de enviar el formulario

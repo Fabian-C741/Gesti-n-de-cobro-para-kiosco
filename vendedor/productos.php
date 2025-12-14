@@ -633,20 +633,84 @@ function eliminarProducto(id, nombre) {
 
 // Variable global para controlar validación
 let codigoBarrasValidado = false;
+let timerValidacion = null;
+
+// Bloquear campos del formulario crear
+function bloquearCamposCrear() {
+    const campos = ['nombre_crear', 'descripcion_crear', 'precio_compra_crear', 
+                    'precio_venta_crear', 'stock_crear', 'stock_minimo_crear', 'categoria_crear'];
+    campos.forEach(id => {
+        const campo = document.getElementById(id);
+        if (campo) {
+            campo.disabled = true;
+            campo.style.backgroundColor = '#f0f0f0';
+        }
+    });
+    const btnGuardar = document.querySelector('#modalCrear button[type="submit"]');
+    if (btnGuardar) btnGuardar.disabled = true;
+}
+
+// Desbloquear campos del formulario crear
+function desbloquearCamposCrear() {
+    const campos = ['nombre_crear', 'descripcion_crear', 'precio_compra_crear', 
+                    'precio_venta_crear', 'stock_crear', 'stock_minimo_crear', 'categoria_crear'];
+    campos.forEach(id => {
+        const campo = document.getElementById(id);
+        if (campo) {
+            campo.disabled = false;
+            campo.style.backgroundColor = '';
+        }
+    });
+    const btnGuardar = document.querySelector('#modalCrear button[type="submit"]');
+    if (btnGuardar) btnGuardar.disabled = false;
+}
+
+// Bloquear campos del formulario editar
+function bloquearCamposEditar() {
+    const campos = ['edit_nombre', 'edit_descripcion', 'edit_precio_compra', 
+                    'edit_precio_venta', 'edit_stock', 'edit_stock_minimo', 'edit_categoria'];
+    campos.forEach(id => {
+        const campo = document.getElementById(id);
+        if (campo) {
+            campo.disabled = true;
+            campo.style.backgroundColor = '#f0f0f0';
+        }
+    });
+    const btnGuardar = document.querySelector('#modalEditar button[type="submit"]');
+    if (btnGuardar) btnGuardar.disabled = true;
+}
+
+// Desbloquear campos del formulario editar
+function desbloquearCamposEditar() {
+    const campos = ['edit_nombre', 'edit_descripcion', 'edit_precio_compra', 
+                    'edit_precio_venta', 'edit_stock', 'edit_stock_minimo', 'edit_categoria'];
+    campos.forEach(id => {
+        const campo = document.getElementById(id);
+        if (campo) {
+            campo.disabled = false;
+            campo.style.backgroundColor = '';
+        }
+    });
+    const btnGuardar = document.querySelector('#modalEditar button[type="submit"]');
+    if (btnGuardar) btnGuardar.disabled = false;
+}
 
 // Validar código de barras - BLOQUEA si ya existe
 function validarCodigoBarras(modo, productoId) {
     const inputId = modo === 'crear' ? 'codigo_barras_crear' : 'edit_codigo_barras';
     const nombreId = modo === 'crear' ? 'nombre_crear' : 'edit_nombre';
+    const bloquear = modo === 'crear' ? bloquearCamposCrear : bloquearCamposEditar;
+    const desbloquear = modo === 'crear' ? desbloquearCamposCrear : desbloquearCamposEditar;
     const codigoBarras = document.getElementById(inputId).value.trim();
     
     if (!codigoBarras) {
         codigoBarrasValidado = true;
-        document.getElementById(nombreId).focus();
+        desbloquear();
         return;
     }
     
     codigoBarrasValidado = false;
+    bloquear();
     
     fetch(`../api/buscar_producto.php?codigo_barras=${encodeURIComponent(codigoBarras)}`)
         .then(response => response.json())
@@ -655,24 +719,25 @@ function validarCodigoBarras(modo, productoId) {
                 // Si estamos editando el mismo producto, permitir
                 if (productoId && data.producto.id == productoId) {
                     codigoBarrasValidado = true;
-                    document.getElementById(nombreId).focus();
+                    desbloquear();
                     return;
                 }
                 // Código ya existe - alertar y limpiar
-                alert('El código de barras ya existe. Producto: "' + data.producto.nombre + '"');
+                alert('⚠️ CÓDIGO DE BARRAS DUPLICADO\n\nYa existe el producto: "' + data.producto.nombre + '"\n\nEscanea otro código.');
                 document.getElementById(inputId).value = '';
                 document.getElementById(inputId).focus();
                 codigoBarrasValidado = false;
             } else {
                 // Código no existe - permitir avanzar
                 codigoBarrasValidado = true;
+                desbloquear();
                 document.getElementById(nombreId).focus();
             }
         })
         .catch(error => {
             console.error('Error:', error);
             codigoBarrasValidado = true;
-            document.getElementById(nombreId).focus();
+            desbloquear();
         });
 }
 
@@ -683,6 +748,7 @@ function limpiarFormularioCrear() {
     document.getElementById('preview_crear').style.display = 'none';
     document.getElementById('crear_activo').checked = true;
     codigoBarrasValidado = false;
+    desbloquearCamposCrear();
 }
 
 // Verificar si hay que reabrir el modal después de crear producto
@@ -702,15 +768,35 @@ document.addEventListener('DOMContentLoaded', function() {
     // Evento en código de barras crear
     const codigoBarrasCrear = document.getElementById('codigo_barras_crear');
     if (codigoBarrasCrear) {
+        // Validación automática mientras escribe
+        codigoBarrasCrear.addEventListener('input', function() {
+            const valor = this.value.trim();
+            if (!valor) {
+                codigoBarrasValidado = true;
+                desbloquearCamposCrear();
+                return;
+            }
+            bloquearCamposCrear();
+            codigoBarrasValidado = false;
+            if (timerValidacion) clearTimeout(timerValidacion);
+            if (valor.length >= 8) {
+                timerValidacion = setTimeout(() => validarCodigoBarras('crear', null), 300);
+            } else if (valor.length >= 3) {
+                timerValidacion = setTimeout(() => validarCodigoBarras('crear', null), 800);
+            }
+        });
+        
         codigoBarrasCrear.addEventListener('keydown', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 e.stopPropagation();
+                if (timerValidacion) clearTimeout(timerValidacion);
                 validarCodigoBarras('crear', null);
             }
         });
         codigoBarrasCrear.addEventListener('blur', function() {
-            if (this.value.trim().length >= 3) {
+            if (this.value.trim() && !codigoBarrasValidado) {
+                if (timerValidacion) clearTimeout(timerValidacion);
                 validarCodigoBarras('crear', null);
             }
         });
@@ -719,16 +805,37 @@ document.addEventListener('DOMContentLoaded', function() {
     // Evento en código de barras editar
     const codigoBarrasEditar = document.getElementById('edit_codigo_barras');
     if (codigoBarrasEditar) {
+        // Validación automática mientras escribe
+        codigoBarrasEditar.addEventListener('input', function() {
+            const valor = this.value.trim();
+            const editId = document.getElementById('edit_id').value;
+            if (!valor) {
+                codigoBarrasValidado = true;
+                desbloquearCamposEditar();
+                return;
+            }
+            bloquearCamposEditar();
+            codigoBarrasValidado = false;
+            if (timerValidacion) clearTimeout(timerValidacion);
+            if (valor.length >= 8) {
+                timerValidacion = setTimeout(() => validarCodigoBarras('edit', editId), 300);
+            } else if (valor.length >= 3) {
+                timerValidacion = setTimeout(() => validarCodigoBarras('edit', editId), 800);
+            }
+        });
+        
         codigoBarrasEditar.addEventListener('keydown', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 e.stopPropagation();
+                if (timerValidacion) clearTimeout(timerValidacion);
                 const editId = document.getElementById('edit_id').value;
                 validarCodigoBarras('edit', editId);
             }
         });
         codigoBarrasEditar.addEventListener('blur', function() {
-            if (this.value.trim().length >= 3) {
+            if (this.value.trim() && !codigoBarrasValidado) {
+                if (timerValidacion) clearTimeout(timerValidacion);
                 const editId = document.getElementById('edit_id').value;
                 validarCodigoBarras('edit', editId);
             }
