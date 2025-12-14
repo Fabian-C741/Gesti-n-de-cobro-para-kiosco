@@ -14,6 +14,11 @@ $tenants = $stmt->fetchAll();
 // Filtro por tenant
 $tenant_id = isset($_GET['tenant_id']) ? intval($_GET['tenant_id']) : 0;
 
+// Mensaje de éxito desde redirección
+if (isset($_GET['msg']) && $_GET['msg'] === 'estado_ok') {
+    $exito = 'Estado actualizado exitosamente';
+}
+
 // Procesar acciones
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
@@ -90,8 +95,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute([$estado, $id]);
             
             registrarLog($_SESSION['super_admin_id'], 'toggle_punto_venta', "Punto de venta ID $id " . ($estado ? 'activado' : 'desactivado'));
-            $exito = 'Estado actualizado exitosamente';
-            $tenant_id = $selected_tenant_id;
+            
+            // Redirigir para evitar reenvío del formulario y mantener el tenant seleccionado
+            header("Location: puntos_venta.php?tenant_id=$selected_tenant_id&msg=estado_ok");
+            exit;
         } catch (PDOException $e) {
             $error = 'Error al cambiar estado: ' . $e->getMessage();
         }
