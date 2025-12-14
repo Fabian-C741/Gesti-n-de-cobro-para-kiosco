@@ -13,8 +13,10 @@ $fecha_desde = $_GET['fecha_desde'] ?? date('Y-m-01');
 $fecha_hasta = $_GET['fecha_hasta'] ?? date('Y-m-d');
 $vendedor_id = $_GET['vendedor'] ?? '';
 $pv_id = get_user_punto_venta_id();
+$has_pv_column_ventas = column_exists($db, 'ventas', 'punto_venta_id');
+$has_pv_column_usuarios = column_exists($db, 'usuarios', 'punto_venta_id');
 
-// Obtener ventas (filtrado por punto de venta)
+// Obtener ventas (filtrado por punto de venta si la columna existe)
 $query = "
     SELECT v.*, u.nombre as vendedor_nombre,
            (SELECT SUM(vd.cantidad * vd.precio_unitario) 
@@ -27,8 +29,8 @@ $query = "
 
 $params = [$fecha_desde, $fecha_hasta];
 
-// Filtrar por punto de venta si el usuario tiene uno asignado
-if ($pv_id) {
+// Filtrar por punto de venta si el usuario tiene uno asignado Y la columna existe
+if ($pv_id && $has_pv_column_ventas) {
     $query .= " AND (v.punto_venta_id = ? OR v.punto_venta_id IS NULL)";
     $params[] = $pv_id;
 }
@@ -44,8 +46,8 @@ $stmt = $db->prepare($query);
 $stmt->execute($params);
 $ventas = $stmt->fetchAll();
 
-// Obtener vendedores para filtro (filtrado por punto de venta)
-if ($pv_id) {
+// Obtener vendedores para filtro (filtrado por punto de venta si la columna existe)
+if ($pv_id && $has_pv_column_usuarios) {
     $stmt_vendedores = $db->prepare("SELECT id, nombre FROM usuarios WHERE user_rol = 'vendedor' AND (punto_venta_id = ? OR punto_venta_id IS NULL) ORDER BY nombre");
     $stmt_vendedores->execute([$pv_id]);
 } else {

@@ -23,11 +23,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $punto_venta_id = get_user_punto_venta_id();
             
             try {
-                $stmt = $db->prepare("
-                    INSERT INTO categorias (nombre, descripcion, usuario_id, punto_venta_id)
-                    VALUES (?, ?, ?, ?)
-                ");
-                $stmt->execute([$nombre, $descripcion, $_SESSION['user_id'], $punto_venta_id]);
+                // Verificar si la columna punto_venta_id existe
+                $has_pv_column = column_exists($db, 'categorias', 'punto_venta_id');
+                
+                if ($has_pv_column && $punto_venta_id) {
+                    $stmt = $db->prepare("
+                        INSERT INTO categorias (nombre, descripcion, usuario_id, punto_venta_id)
+                        VALUES (?, ?, ?, ?)
+                    ");
+                    $stmt->execute([$nombre, $descripcion, $_SESSION['user_id'], $punto_venta_id]);
+                } else {
+                    $stmt = $db->prepare("
+                        INSERT INTO categorias (nombre, descripcion, usuario_id)
+                        VALUES (?, ?, ?)
+                    ");
+                    $stmt->execute([$nombre, $descripcion, $_SESSION['user_id']]);
+                }
                 
                 log_activity($db, $_SESSION['user_id'], 'crear_categoria', "Categoría: $nombre");
                 $success = 'Categoría creada exitosamente';
@@ -81,9 +92,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Obtener categorías (filtrado por punto de venta)
+// Obtener categorías
 $search = $_GET['search'] ?? '';
 $pv_id = get_user_punto_venta_id();
+$has_pv_column = column_exists($db, 'categorias', 'punto_venta_id');
 
 $query = "
     SELECT c.*, 
@@ -95,8 +107,8 @@ $query = "
 
 $params = [];
 
-// Filtrar por punto de venta si el usuario tiene uno asignado
-if ($pv_id) {
+// Filtrar por punto de venta SOLO si la columna existe
+if ($pv_id && $has_pv_column) {
     $query .= " AND (c.punto_venta_id = ? OR c.punto_venta_id IS NULL)";
     $params[] = $pv_id;
 }

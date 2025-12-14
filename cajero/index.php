@@ -21,6 +21,7 @@ if ($_SESSION['user_rol'] !== 'cajero') {
 $page_title = 'Punto de Venta';
 $db = Database::getInstance()->getConnection();
 $pv_id = get_user_punto_venta_id();
+$has_pv_column = column_exists($db, 'productos', 'punto_venta_id');
 
 // Obtener productos solo si hay búsqueda (filtrado por punto de venta)
 $buscar = trim($_GET['buscar'] ?? '');
@@ -29,7 +30,7 @@ $error_busqueda = '';
 
 if (!empty($buscar) && strlen($buscar) >= 3) {
     try {
-        if ($pv_id) {
+        if ($pv_id && $has_pv_column) {
             $query = "SELECT p.*, c.nombre as categoria_nombre 
                       FROM productos p
                       LEFT JOIN categorias c ON p.categoria_id = c.id

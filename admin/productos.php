@@ -67,16 +67,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             if (empty($error)) {
                 try {
-                    $punto_venta_id = get_user_punto_venta_id();
-                    $stmt = $db->prepare("
-                        INSERT INTO productos (codigo, nombre, descripcion, precio_compra, precio_venta, 
-                                             stock, stock_minimo, categoria_id, usuario_id, imagen, punto_venta_id)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ");
-                    $stmt->execute([
-                        $codigo, $nombre, $descripcion, $precio_compra, $precio_venta,
-                        $stock, $stock_minimo, $categoria_id, $_SESSION['user_id'], $imagen_nombre, $punto_venta_id
-                    ]);
+                    // Verificar si la columna punto_venta_id existe
+                    $has_pv = column_exists($db, 'productos', 'punto_venta_id');
+                    
+                    if ($has_pv) {
+                        $punto_venta_id = get_user_punto_venta_id();
+                        $stmt = $db->prepare("
+                            INSERT INTO productos (codigo, nombre, descripcion, precio_compra, precio_venta, 
+                                                 stock, stock_minimo, categoria_id, usuario_id, imagen, punto_venta_id)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ");
+                        $stmt->execute([
+                            $codigo, $nombre, $descripcion, $precio_compra, $precio_venta,
+                            $stock, $stock_minimo, $categoria_id, $_SESSION['user_id'], $imagen_nombre, $punto_venta_id
+                        ]);
+                    } else {
+                        $stmt = $db->prepare("
+                            INSERT INTO productos (codigo, nombre, descripcion, precio_compra, precio_venta, 
+                                                 stock, stock_minimo, categoria_id, usuario_id, imagen)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ");
+                        $stmt->execute([
+                            $codigo, $nombre, $descripcion, $precio_compra, $precio_venta,
+                            $stock, $stock_minimo, $categoria_id, $_SESSION['user_id'], $imagen_nombre
+                        ]);
+                    }
                     
                     log_activity($db, $_SESSION['user_id'], 'crear_producto', "Producto: $nombre");
                     $success = 'Producto creado exitosamente';
@@ -195,10 +210,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Obtener productos (filtrado por punto de venta)
+// Obtener productos
 $search = $_GET['search'] ?? '';
 $categoria_filter = $_GET['categoria'] ?? '';
 $pv_id = get_user_punto_venta_id();
+$has_pv_column = column_exists($db, 'productos', 'punto_venta_id');
 
 $query = "
     SELECT p.*, c.nombre as categoria_nombre 
@@ -209,8 +225,8 @@ $query = "
 
 $params = [];
 
-// Filtrar por punto de venta si el usuario tiene uno asignado
-if ($pv_id) {
+// Filtrar por punto de venta SOLO si la columna existe y el usuario tiene uno asignado
+if ($pv_id && $has_pv_column) {
     $query .= " AND (p.punto_venta_id = ? OR p.punto_venta_id IS NULL)";
     $params[] = $pv_id;
 }
@@ -234,8 +250,9 @@ $stmt = $db->prepare($query);
 $stmt->execute($params);
 $productos = $stmt->fetchAll();
 
-// Obtener categorías para el filtro (filtrado por punto de venta)
-if ($pv_id) {
+// Obtener categorías para el filtro
+$has_pv_cat = column_exists($db, 'categorias', 'punto_venta_id');
+if ($pv_id && $has_pv_cat) {
     $stmt_cat = $db->prepare("SELECT * FROM categorias WHERE activo = 1 AND (punto_venta_id = ? OR punto_venta_id IS NULL) ORDER BY nombre");
     $stmt_cat->execute([$pv_id]);
 } else {

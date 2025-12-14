@@ -49,20 +49,38 @@ try {
     // Obtener punto_venta_id del usuario
     $punto_venta_id = $_SESSION['punto_venta_id'] ?? null;
     
+    // Verificar si la columna punto_venta_id existe
+    $has_pv_column = column_exists($db, 'ventas', 'punto_venta_id');
+    
     // Insertar venta
-    $stmt = $db->prepare("
-        INSERT INTO ventas (numero_venta, usuario_id, subtotal, descuento, total, metodo_pago, estado, punto_venta_id)
-        VALUES (?, ?, ?, ?, ?, ?, 'completada', ?)
-    ");
-    $stmt->execute([
-        $numero_venta,
-        $_SESSION['user_id'],
-        $subtotal,
-        $descuento,
-        $total,
-        $metodo_pago,
-        $punto_venta_id
-    ]);
+    if ($has_pv_column && $punto_venta_id) {
+        $stmt = $db->prepare("
+            INSERT INTO ventas (numero_venta, usuario_id, subtotal, descuento, total, metodo_pago, estado, punto_venta_id)
+            VALUES (?, ?, ?, ?, ?, ?, 'completada', ?)
+        ");
+        $stmt->execute([
+            $numero_venta,
+            $_SESSION['user_id'],
+            $subtotal,
+            $descuento,
+            $total,
+            $metodo_pago,
+            $punto_venta_id
+        ]);
+    } else {
+        $stmt = $db->prepare("
+            INSERT INTO ventas (numero_venta, usuario_id, subtotal, descuento, total, metodo_pago, estado)
+            VALUES (?, ?, ?, ?, ?, ?, 'completada')
+        ");
+        $stmt->execute([
+            $numero_venta,
+            $_SESSION['user_id'],
+            $subtotal,
+            $descuento,
+            $total,
+            $metodo_pago
+        ]);
+    }
     
     $venta_id = $db->lastInsertId();
     

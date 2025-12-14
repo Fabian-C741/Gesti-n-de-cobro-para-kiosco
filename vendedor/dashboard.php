@@ -18,12 +18,13 @@ if (is_admin()) {
 $db = Database::getInstance()->getConnection();
 $usuario_id = $_SESSION['user_id'];
 $pv_id = get_user_punto_venta_id();
+$has_pv_column = column_exists($db, 'productos', 'punto_venta_id');
 
 // Obtener estadísticas del vendedor
 $stats_ventas = get_sales_stats($db, $usuario_id);
 
 // Total productos (filtrado por punto de venta si aplica)
-if ($pv_id) {
+if ($pv_id && $has_pv_column) {
     $stmt = $db->prepare("SELECT COUNT(*) as total FROM productos WHERE activo = 1 AND (punto_venta_id = ? OR punto_venta_id IS NULL)");
     $stmt->execute([$pv_id]);
 } else {
@@ -33,7 +34,7 @@ if ($pv_id) {
 $total_productos = $stmt->fetch()['total'];
 
 // Productos con stock bajo (filtrado por punto de venta si aplica)
-if ($pv_id) {
+if ($pv_id && $has_pv_column) {
     $stmt = $db->prepare("SELECT COUNT(*) as total FROM productos WHERE stock <= stock_minimo AND activo = 1 AND (punto_venta_id = ? OR punto_venta_id IS NULL)");
     $stmt->execute([$pv_id]);
 } else {

@@ -18,14 +18,25 @@ $db = Database::getInstance()->getConnection();
 $mensaje = '';
 $tipo_mensaje = '';
 
+// Verificar si la columna punto_venta_id existe en usuarios
+$has_pv_column = column_exists($db, 'usuarios', 'punto_venta_id');
+
 // Obtener datos del usuario
-$query = "SELECT u.*, pv.nombre as punto_venta_nombre, s.nombre as sucursal_nombre,
-          (SELECT COUNT(*) FROM ventas WHERE usuario_id = u.id) as total_ventas,
-          (SELECT COALESCE(SUM(total), 0) FROM ventas WHERE usuario_id = u.id) as ventas_total
-          FROM usuarios u
-          LEFT JOIN puntos_venta pv ON u.punto_venta_id = pv.id
-          LEFT JOIN sucursales s ON pv.sucursal_id = s.id
-          WHERE u.id = ?";
+if ($has_pv_column) {
+    $query = "SELECT u.*, pv.nombre as punto_venta_nombre, s.nombre as sucursal_nombre,
+              (SELECT COUNT(*) FROM ventas WHERE usuario_id = u.id) as total_ventas,
+              (SELECT COALESCE(SUM(total), 0) FROM ventas WHERE usuario_id = u.id) as ventas_total
+              FROM usuarios u
+              LEFT JOIN puntos_venta pv ON u.punto_venta_id = pv.id
+              LEFT JOIN sucursales s ON pv.sucursal_id = s.id
+              WHERE u.id = ?";
+} else {
+    $query = "SELECT u.*, NULL as punto_venta_nombre, NULL as sucursal_nombre,
+              (SELECT COUNT(*) FROM ventas WHERE usuario_id = u.id) as total_ventas,
+              (SELECT COALESCE(SUM(total), 0) FROM ventas WHERE usuario_id = u.id) as ventas_total
+              FROM usuarios u
+              WHERE u.id = ?";
+}
 $stmt = $db->prepare($query);
 $stmt->execute([$_SESSION['user_id']]);
 $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
