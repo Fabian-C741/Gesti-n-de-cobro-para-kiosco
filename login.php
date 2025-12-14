@@ -261,9 +261,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $error = $check_attempts['message'];
                         log_security_event($db, 'login_blocked', $client_ip, "Login: $login_input - " . $check_attempts['message']);
                     } else {
-                        // Buscar por email o username
+                        // Buscar por email o username (compatible con/sin punto_venta_id)
                         $stmt = $db->prepare("
-                            SELECT id, nombre, email, username, password, user_rol, activo, punto_venta_id 
+                            SELECT * 
                             FROM usuarios 
                             WHERE (email = ? OR username = ?) AND activo = 1
                         ");

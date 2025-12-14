@@ -80,9 +80,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ]
                     );
                     
-                    // Buscar usuario (puede ser por email o username)
+                    // Buscar usuario (puede ser por email o username, compatible con/sin punto_venta_id)
                     $stmt = $conn_tenant->prepare("
-                        SELECT id, nombre, email, username, password, rol, activo, punto_venta_id 
+                        SELECT * 
                         FROM usuarios 
                         WHERE (email = ? OR username = ?) AND activo = 1
                     ");
@@ -103,17 +103,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $_SESSION['tenant_bd_user'] = $tenant['bd_usuario'];
                         $_SESSION['tenant_bd_pass'] = $tenant['bd_password'];
                         
+                        // Compatible con columna 'rol' o 'user_rol'
+                        $user_rol = $user['user_rol'] ?? $user['rol'] ?? 'vendedor';
+                        
                         $_SESSION['user_id'] = $user['id'];
                         $_SESSION['user_nombre'] = $user['nombre'];
                         $_SESSION['user_email'] = $user['email'];
-                        $_SESSION['user_rol'] = $user['rol'];
+                        $_SESSION['user_rol'] = $user_rol;
                         $_SESSION['login_time'] = time();
                         $_SESSION['punto_venta_id'] = $user['punto_venta_id'] ?? null;
                         
                         // Redirigir según rol
-                        if ($user['rol'] === 'admin') {
+                        if ($user_rol === 'admin') {
                             header('Location: admin/dashboard.php');
-                        } elseif ($user['rol'] === 'cajero') {
+                        } elseif ($user_rol === 'cajero') {
                             header('Location: cajero/index.php');
                         } else {
                             header('Location: vendedor/dashboard.php');
