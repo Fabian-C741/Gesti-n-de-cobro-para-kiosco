@@ -105,7 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute([$user_id]);
         $usuario = $stmt->fetch();
         
-        if ($usuario['rol'] === 'admin' && $total_admins <= 1) {
+        if ($usuario['user_rol'] === 'admin' && $total_admins <= 1) {
             $error = 'No puedes eliminar el único administrador';
         } else {
             $stmt = $tenant_conn->prepare("UPDATE usuarios SET activo = 0 WHERE id = ?");
@@ -118,7 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Obtener todos los usuarios del tenant
-$stmt = $tenant_conn->query("SELECT * FROM usuarios ORDER BY rol, nombre");
+$stmt = $tenant_conn->query("SELECT * FROM usuarios ORDER BY user_rol, nombre");
 $usuarios = $stmt->fetchAll();
 ?>
 <!DOCTYPE html>
