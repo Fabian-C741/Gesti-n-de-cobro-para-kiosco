@@ -6,24 +6,13 @@ verificarSuperAdmin();
 $error = '';
 $exito = '';
 
-// Obtener lista de tenants para el filtro (incluir estado para sincronización)
-$stmt = $conn_master->prepare("SELECT id, nombre, estado FROM tenants WHERE activo = 1 ORDER BY nombre");
+// Obtener lista de tenants para el filtro
+$stmt = $conn_master->prepare("SELECT id, nombre FROM tenants WHERE activo = 1 ORDER BY nombre");
 $stmt->execute();
 $tenants = $stmt->fetchAll();
 
 // Filtro por tenant
 $tenant_id = isset($_GET['tenant_id']) ? intval($_GET['tenant_id']) : 0;
-
-// Obtener estado actual del tenant seleccionado
-$estado_cliente = 'activo';
-if ($tenant_id > 0) {
-    foreach ($tenants as $t) {
-        if ($t['id'] == $tenant_id) {
-            $estado_cliente = $t['estado'];
-            break;
-        }
-    }
-}
 
 // Procesar acciones
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -249,21 +238,10 @@ $page_title = 'Gestión de Puntos de Venta';
                         <?php foreach ($tenants as $t): ?>
                             <option value="<?= $t['id'] ?>" <?= $tenant_id == $t['id'] ? 'selected' : '' ?>>
                                 <?= htmlspecialchars($t['nombre']) ?>
-                                <?php if ($t['estado'] !== 'activo'): ?>
-                                    [<?= strtoupper($t['estado']) ?>]
-                                <?php endif; ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <?php if ($tenant_id > 0 && $estado_cliente !== 'activo'): ?>
-                <div class="col-md-6 d-flex align-items-end">
-                    <div class="alert alert-warning mb-0 w-100 py-2">
-                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                        <strong>Cliente <?= strtoupper($estado_cliente) ?></strong> - Los usuarios no pueden acceder al sistema
-                    </div>
-                </div>
-                <?php endif; ?>
             </form>
         </div>
     </div>
@@ -271,15 +249,8 @@ $page_title = 'Gestión de Puntos de Venta';
     <?php if ($tenant_id > 0): ?>
     <!-- Tabla de Puntos de Venta -->
     <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="card-header">
             <h5 class="mb-0">Puntos de Venta - <?= htmlspecialchars($tenants[array_search($tenant_id, array_column($tenants, 'id'))]['nombre'] ?? '') ?></h5>
-            <?php
-            $badge_colors = ['activo' => 'success', 'suspendido' => 'warning', 'vencido' => 'danger', 'cancelado' => 'secondary'];
-            $badge_color = $badge_colors[$estado_cliente] ?? 'secondary';
-            ?>
-            <span class="badge bg-<?= $badge_color ?>">
-                Cliente: <?= ucfirst($estado_cliente) ?>
-            </span>
         </div>
         <div class="card-body">
             <?php if (count($puntos_venta) > 0): ?>
