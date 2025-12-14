@@ -637,6 +637,8 @@ function validarCodigoBarras(modo, productoId) {
     const nombreId = modo === 'crear' ? 'nombre_crear' : 'edit_nombre';
     const codigoBarras = document.getElementById(inputId).value.trim();
     
+    console.log('Validando código:', codigoBarras, 'modo:', modo); // Debug
+    
     if (!codigoBarras) {
         document.getElementById(nombreId).focus();
         return;
@@ -645,6 +647,7 @@ function validarCodigoBarras(modo, productoId) {
     fetch(`../api/buscar_producto.php?codigo_barras=${encodeURIComponent(codigoBarras)}`)
         .then(response => response.json())
         .then(data => {
+            console.log('Datos:', data); // Debug
             if (data.success && data.producto) {
                 // Si estamos editando el mismo producto, permitir
                 if (productoId && data.producto.id == productoId) {
@@ -692,12 +695,17 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 500);
     <?php endif; ?>
     
-    // Al escanear (Enter), validar si el código ya existe
+    // Al escanear - validar si el código ya existe
     const codigoBarrasCrear = document.getElementById('codigo_barras_crear');
     if (codigoBarrasCrear) {
         codigoBarrasCrear.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
+                validarCodigoBarras('crear', null);
+            }
+        });
+        codigoBarrasCrear.addEventListener('change', function() {
+            if (this.value.trim().length >= 3) {
                 validarCodigoBarras('crear', null);
             }
         });
@@ -708,6 +716,12 @@ document.addEventListener('DOMContentLoaded', function() {
         codigoBarrasEditar.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
+                const editId = document.getElementById('edit_id').value;
+                validarCodigoBarras('edit', editId);
+            }
+        });
+        codigoBarrasEditar.addEventListener('change', function() {
+            if (this.value.trim().length >= 3) {
                 const editId = document.getElementById('edit_id').value;
                 validarCodigoBarras('edit', editId);
             }

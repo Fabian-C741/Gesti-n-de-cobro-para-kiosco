@@ -583,12 +583,20 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 500);
     <?php endif; ?>
     
-    // Al escanear (Enter), validar si el código ya existe
+    // Al escanear - validar si el código ya existe
     const codigoBarrasInput = document.getElementById('productoCodigoBarras');
     if (codigoBarrasInput) {
+        // Detectar Enter (escáner envia Enter al final)
         codigoBarrasInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
+                validarCodigoBarras();
+            }
+        });
+        
+        // También validar al perder foco o al cambiar (por si el escáner no envía Enter)
+        codigoBarrasInput.addEventListener('change', function() {
+            if (this.value.trim().length >= 3) {
                 validarCodigoBarras();
             }
         });
@@ -600,14 +608,20 @@ function validarCodigoBarras() {
     const codigoBarras = document.getElementById('productoCodigoBarras').value.trim();
     const productoId = document.getElementById('productoId').value;
     
+    console.log('Validando código:', codigoBarras); // Debug
+    
     if (!codigoBarras) {
         document.getElementById('productoNombre').focus();
         return;
     }
     
     fetch(`../api/buscar_producto.php?codigo_barras=${encodeURIComponent(codigoBarras)}`)
-        .then(response => response.json())
+        .then(response => {
+            console.log('Respuesta recibida'); // Debug
+            return response.json();
+        })
         .then(data => {
+            console.log('Datos:', data); // Debug
             if (data.success && data.producto) {
                 // Si estamos editando el mismo producto, permitir
                 if (productoId && data.producto.id == productoId) {
@@ -618,6 +632,16 @@ function validarCodigoBarras() {
                 alert('El código de barras ya existe. Producto: "' + data.producto.nombre + '"');
                 document.getElementById('productoCodigoBarras').value = '';
                 document.getElementById('productoCodigoBarras').focus();
+            } else {
+                // Código no existe - permitir avanzar
+                console.log('Código disponible, avanzando...'); // Debug
+                document.getElementById('productoNombre').focus();
+            }
+        })
+        .catch(error => {
+            console.error('Error en validación:', error);
+            document.getElementById('productoNombre').focus();
+        });
             } else {
                 // Código no existe - permitir avanzar
                 document.getElementById('productoNombre').focus();

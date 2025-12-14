@@ -28,26 +28,15 @@ try {
     // Verificar si la columna punto_venta_id existe
     $has_pv_column = column_exists($db, 'productos', 'punto_venta_id');
     
-    // Buscar producto por código de barras (filtrado por punto de venta si la columna existe)
-    if ($pv_id && $has_pv_column) {
-        $stmt = $db->prepare("
-            SELECT p.*, c.nombre as categoria_nombre
-            FROM productos p
-            LEFT JOIN categorias c ON p.categoria_id = c.id
-            WHERE p.codigo_barras = ? AND (p.punto_venta_id = ? OR p.punto_venta_id IS NULL) AND p.activo = 1
-            LIMIT 1
-        ");
-        $stmt->execute([$codigo_barras, $pv_id]);
-    } else {
-        $stmt = $db->prepare("
-            SELECT p.*, c.nombre as categoria_nombre
-            FROM productos p
-            LEFT JOIN categorias c ON p.categoria_id = c.id
-            WHERE p.codigo_barras = ? AND p.activo = 1
-            LIMIT 1
-        ");
-        $stmt->execute([$codigo_barras]);
-    }
+    // Buscar producto por código de barras (buscar TODOS para validar duplicados)
+    $stmt = $db->prepare("
+        SELECT p.*, c.nombre as categoria_nombre
+        FROM productos p
+        LEFT JOIN categorias c ON p.categoria_id = c.id
+        WHERE p.codigo_barras = ?
+        LIMIT 1
+    ");
+    $stmt->execute([$codigo_barras]);
     $producto = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if ($producto) {
