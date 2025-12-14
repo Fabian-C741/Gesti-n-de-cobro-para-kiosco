@@ -540,39 +540,30 @@ function limpiarFormulario() {
     document.getElementById('productoNombre').disabled = false;
 }
 
-// Validar código de barras contra la base de datos
+// Validar código de barras - SIMPLE Y DIRECTO
 async function validarCodigo() {
     const input = document.getElementById('productoCodigoBarras');
     const nombreInput = document.getElementById('productoNombre');
     const codigo = input.value.trim();
-    const productoId = document.getElementById('productoId').value;
+    const productoId = document.getElementById('productoId').value || 0;
     
     if (!codigo) {
         nombreInput.disabled = false;
         return;
     }
     
-    // Bloquear nombre mientras valida
     nombreInput.disabled = true;
     
     try {
-        const response = await fetch(`../api/buscar_producto.php?codigo_barras=${encodeURIComponent(codigo)}`);
+        const url = `../api/validar_codigo_barras.php?codigo=${encodeURIComponent(codigo)}&excluir_id=${productoId}`;
+        const response = await fetch(url);
         const data = await response.json();
         
-        if (data.success && data.producto) {
-            // Si estamos editando el mismo producto, permitir
-            if (productoId && data.producto.id == productoId) {
-                nombreInput.disabled = false;
-                nombreInput.focus();
-                return;
-            }
-            // EXISTE - alertar y limpiar
-            alert('El producto "' + data.producto.nombre + '" ya existe con ese código.');
+        if (data.existe) {
+            alert('El producto "' + data.nombre + '" ya existe con ese código.');
             input.value = '';
             input.focus();
-            // Mantener nombre bloqueado
         } else {
-            // NO EXISTE - desbloquear y avanzar
             nombreInput.disabled = false;
             nombreInput.focus();
         }
@@ -586,7 +577,6 @@ document.getElementById('modalProducto').addEventListener('hidden.bs.modal', fun
     limpiarFormulario();
 });
 
-// Inicialización
 document.addEventListener('DOMContentLoaded', function() {
     <?php if ($reabrir_modal): ?>
     limpiarFormulario();
@@ -600,23 +590,20 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 500);
     <?php endif; ?>
     
-    const codigoBarrasInput = document.getElementById('productoCodigoBarras');
+    const codigoInput = document.getElementById('productoCodigoBarras');
     const nombreInput = document.getElementById('productoNombre');
     
-    if (codigoBarrasInput) {
-        // Bloquear nombre al inicio si hay código
-        codigoBarrasInput.addEventListener('input', function() {
+    if (codigoInput) {
+        codigoInput.addEventListener('input', function() {
             if (this.value.trim().length > 0) {
                 nombreInput.disabled = true;
             }
-            // Validar cuando tenga 8+ caracteres
             if (this.value.trim().length >= 8) {
                 validarCodigo();
             }
         });
         
-        // Validar con Enter o Tab
-        codigoBarrasInput.addEventListener('keydown', function(e) {
+        codigoInput.addEventListener('keydown', function(e) {
             if (e.key === 'Enter' || e.key === 'Tab') {
                 e.preventDefault();
                 if (this.value.trim().length >= 1) {
