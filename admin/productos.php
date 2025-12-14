@@ -540,45 +540,58 @@ function limpiarFormulario() {
     document.getElementById('productoNombre').disabled = false;
 }
 
-// Validar código de barras - SIMPLE Y DIRECTO
+// Validar código de barras
+let validando = false;
 async function validarCodigo() {
+    if (validando) return;
+    
     const input = document.getElementById('productoCodigoBarras');
     const nombreInput = document.getElementById('productoNombre');
     const codigo = input.value.trim();
     const productoId = document.getElementById('productoId').value || 0;
     
-    console.log('Validando código:', codigo);
-    
     if (!codigo) {
         nombreInput.disabled = false;
+        nombreInput.focus();
         return;
     }
     
-    nombreInput.disabled = true;
+    validando = true;
     
     try {
-        const url = `../api/validar_codigo_barras.php?codigo=${encodeURIComponent(codigo)}&excluir_id=${productoId}`;
-        console.log('URL:', url);
-        const response = await fetch(url);
+        const response = await fetch(`../api/validar_codigo_barras.php?codigo=${encodeURIComponent(codigo)}&excluir_id=${productoId}`);
         const data = await response.json();
-        console.log('Respuesta:', data);
         
         if (data.existe) {
-            alert('El producto "' + data.nombre + '" ya existe con ese código.');
+            alert('¡DUPLICADO! El producto "' + data.nombre + '" ya tiene ese código.');
             input.value = '';
+            nombreInput.disabled = false;
             input.focus();
         } else {
             nombreInput.disabled = false;
             nombreInput.focus();
         }
     } catch (error) {
-        console.error('Error:', error);
         nombreInput.disabled = false;
+        nombreInput.focus();
     }
+    
+    validando = false;
 }
 
 document.getElementById('modalProducto').addEventListener('hidden.bs.modal', function () {
     limpiarFormulario();
+});
+
+document.getElementById('modalProducto').addEventListener('shown.bs.modal', function () {
+    const codigoInput = document.getElementById('productoCodigoBarras');
+    
+    codigoInput.onkeydown = function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            validarCodigo();
+        }
+    };
 });
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -593,45 +606,6 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('productoCodigoBarras').focus();
     }, 500);
     <?php endif; ?>
-    
-    const codigoInput = document.getElementById('productoCodigoBarras');
-    const nombreInput = document.getElementById('productoNombre');
-    
-    console.log('Script cargado, codigoInput:', codigoInput);
-    
-    if (codigoInput) {
-        codigoInput.addEventListener('input', function() {
-            console.log('INPUT evento - valor:', this.value);
-            if (this.value.trim().length > 0) {
-                nombreInput.disabled = true;
-            }
-            if (this.value.trim().length >= 3) {
-                validarCodigo();
-            }
-        });
-        
-        codigoInput.addEventListener('paste', function(e) {
-            console.log('PASTE evento');
-            setTimeout(() => {
-                console.log('Después de pegar:', this.value);
-                if (this.value.trim().length >= 1) {
-                    validarCodigo();
-                }
-            }, 100);
-        });
-        
-        codigoInput.addEventListener('keydown', function(e) {
-            console.log('KEYDOWN evento - tecla:', e.key);
-            if (e.key === 'Enter' || e.key === 'Tab') {
-                e.preventDefault();
-                if (this.value.trim().length >= 1) {
-                    validarCodigo();
-                }
-            }
-        });
-    } else {
-        console.log('ERROR: No se encontró el input productoCodigoBarras');
-    }
 });
 </script>
 
