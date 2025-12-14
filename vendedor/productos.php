@@ -48,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 // Validar código de barras duplicado (solo si se proporciona uno)
                 if (!empty($codigo_barras)) {
-                    $stmt_check = $db->prepare("SELECT id, nombre FROM productos WHERE codigo_barras = ? AND activo = 1" . ($action === 'editar' ? " AND id != ?" : ""));
+                    $stmt_check = $db->prepare("SELECT id, nombre FROM productos WHERE codigo_barras = ?" . ($action === 'editar' ? " AND id != ?" : ""));
                     if ($action === 'editar') {
                         $stmt_check->execute([$codigo_barras, $id]);
                     } else {
@@ -58,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     if ($producto_existente) {
                         $error = "El código de barras ya existe. Producto: \"{$producto_existente['nombre']}\"";
-                        $reabrir_modal = true; // Reabrir para que pueda cargar otro producto
+                        $reabrir_modal = true;
                     }
                 }
                 
@@ -631,26 +631,30 @@ function eliminarProducto(id, nombre) {
     new bootstrap.Modal(document.getElementById('modalEliminar')).show();
 }
 
-// Validar código de barras antes de avanzar
+// Variable global para controlar validación
+let codigoBarrasValidado = false;
+
+// Validar código de barras - BLOQUEA si ya existe
 function validarCodigoBarras(modo, productoId) {
     const inputId = modo === 'crear' ? 'codigo_barras_crear' : 'edit_codigo_barras';
     const nombreId = modo === 'crear' ? 'nombre_crear' : 'edit_nombre';
     const codigoBarras = document.getElementById(inputId).value.trim();
     
-    console.log('Validando código:', codigoBarras, 'modo:', modo); // Debug
-    
     if (!codigoBarras) {
+        codigoBarrasValidado = true;
         document.getElementById(nombreId).focus();
         return;
     }
     
+    codigoBarrasValidado = false;
+    
     fetch(`../api/buscar_producto.php?codigo_barras=${encodeURIComponent(codigoBarras)}`)
         .then(response => response.json())
         .then(data => {
-            console.log('Datos:', data); // Debug
             if (data.success && data.producto) {
                 // Si estamos editando el mismo producto, permitir
                 if (productoId && data.producto.id == productoId) {
+                    codigoBarrasValidado = true;
                     document.getElementById(nombreId).focus();
                     return;
                 }
@@ -658,13 +662,16 @@ function validarCodigoBarras(modo, productoId) {
                 alert('El código de barras ya existe. Producto: "' + data.producto.nombre + '"');
                 document.getElementById(inputId).value = '';
                 document.getElementById(inputId).focus();
+                codigoBarrasValidado = false;
             } else {
                 // Código no existe - permitir avanzar
+                codigoBarrasValidado = true;
                 document.getElementById(nombreId).focus();
             }
         })
         .catch(error => {
             console.error('Error:', error);
+            codigoBarrasValidado = true;
             document.getElementById(nombreId).focus();
         });
 }
@@ -674,56 +681,70 @@ function limpiarFormularioCrear() {
     const form = document.querySelector('#modalCrear form');
     form.reset();
     document.getElementById('preview_crear').style.display = 'none';
-    // Mantener checkbox activo marcado por defecto
     document.getElementById('crear_activo').checked = true;
+    codigoBarrasValidado = false;
 }
 
 // Verificar si hay que reabrir el modal después de crear producto
 document.addEventListener('DOMContentLoaded', function() {
     <?php if ($reabrir_modal): ?>
-    // Limpiar formulario y reabrir modal para escaneo continuo
     limpiarFormularioCrear();
     const modalCrear = new bootstrap.Modal(document.getElementById('modalCrear'));
     modalCrear.show();
     <?php if (!empty($error)): ?>
-    // Mostrar alerta de error
     alert('<?php echo addslashes($error); ?>');
     <?php endif; ?>
-    // Enfocar en código de barras
     setTimeout(function() {
         document.getElementById('codigo_barras_crear').focus();
     }, 500);
     <?php endif; ?>
     
-    // Al escanear - validar si el código ya existe
+    // Evento en código de barras crear
     const codigoBarrasCrear = document.getElementById('codigo_barras_crear');
     if (codigoBarrasCrear) {
-        codigoBarrasCrear.addEventListener('keypress', function(e) {
+        codigoBarrasCrear.addEventListener('keydown', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
+                e.stopPropagation();
                 validarCodigoBarras('crear', null);
             }
         });
-        codigoBarrasCrear.addEventListener('change', function() {
+        codigoBarrasCrear.addEventListener('blur', function() {
             if (this.value.trim().length >= 3) {
                 validarCodigoBarras('crear', null);
             }
         });
     }
     
+    // Evento en código de barras editar
     const codigoBarrasEditar = document.getElementById('edit_codigo_barras');
     if (codigoBarrasEditar) {
-        codigoBarrasEditar.addEventListener('keypress', function(e) {
+        codigoBarrasEditar.addEventListener('keydown', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
+                e.stopPropagation();
                 const editId = document.getElementById('edit_id').value;
                 validarCodigoBarras('edit', editId);
             }
         });
-        codigoBarrasEditar.addEventListener('change', function() {
+        codigoBarrasEditar.addEventListener('blur', function() {
             if (this.value.trim().length >= 3) {
                 const editId = document.getElementById('edit_id').value;
                 validarCodigoBarras('edit', editId);
+            }
+        });
+    }
+    
+    // Validar antes de enviar formulario crear
+    const formCrear = document.querySelector('#modalCrear form');
+    if (formCrear) {
+        formCrear.addEventListener('submit', function(e) {
+            const codigoBarras = document.getElementById('codigo_barras_crear').value.trim();
+            if (codigoBarras && !codigoBarrasValidado) {
+                e.preventDefault();
+                alert('Por favor espera mientras se valida el código de barras');
+                validarCodigoBarras('crear', null);
+                return false;
             }
         });
     }

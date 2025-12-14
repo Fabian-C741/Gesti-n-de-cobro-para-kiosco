@@ -31,13 +31,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             // Validar código de barras duplicado (solo si se proporciona uno)
             if (!empty($codigo_barras)) {
-                $stmt_check = $db->prepare("SELECT id, nombre FROM productos WHERE codigo_barras = ? AND activo = 1");
+                $stmt_check = $db->prepare("SELECT id, nombre FROM productos WHERE codigo_barras = ?");
                 $stmt_check->execute([$codigo_barras]);
                 $producto_existente = $stmt_check->fetch();
                 
                 if ($producto_existente) {
                     $error = "El código de barras ya existe. Producto: \"{$producto_existente['nombre']}\"";
-                    $reabrir_modal = true; // Reabrir para que pueda cargar otro producto
+                    $reabrir_modal = true;
                 }
             }
             
@@ -537,45 +537,60 @@ function limpiarFormulario() {
     document.getElementById('productoCodigoBarras').value = '';
 }
 
-function buscarPorCodigoBarras() {
+// Variable global para controlar si el código está validado
+let codigoBarrasValidado = false;
+
+// Validar código de barras - BLOQUEA si ya existe
+function validarCodigoBarras() {
     const codigoBarras = document.getElementById('productoCodigoBarras').value.trim();
+    const productoId = document.getElementById('productoId').value;
     
     if (!codigoBarras) {
+        codigoBarrasValidado = true;
         return;
     }
     
-    // Solo buscar para editar si el usuario lo solicita explícitamente
+    // Marcar como no validado mientras se verifica
+    codigoBarrasValidado = false;
+    
     fetch(`../api/buscar_producto.php?codigo_barras=${encodeURIComponent(codigoBarras)}`)
         .then(response => response.json())
         .then(data => {
             if (data.success && data.producto) {
-                if (confirm(`El producto "${data.producto.nombre}" ya existe. ¿Deseas editarlo?`)) {
-                    editarProducto(data.producto);
+                // Si estamos editando el mismo producto, permitir
+                if (productoId && data.producto.id == productoId) {
+                    codigoBarrasValidado = true;
+                    return;
                 }
+                // Código ya existe - alertar y limpiar
+                alert('El código de barras ya existe. Producto: "' + data.producto.nombre + '"');
+                document.getElementById('productoCodigoBarras').value = '';
+                document.getElementById('productoCodigoBarras').focus();
+                codigoBarrasValidado = false;
             } else {
-                // No mostrar alerta - simplemente continuar
+                // Código no existe - permitir avanzar
+                codigoBarrasValidado = true;
                 document.getElementById('productoNombre').focus();
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            document.getElementById('productoNombre').focus();
+            codigoBarrasValidado = true; // En caso de error, permitir continuar
         });
 }
 
 document.getElementById('modalProducto').addEventListener('hidden.bs.modal', function () {
     limpiarFormulario();
+    codigoBarrasValidado = false;
 });
 
-// Reabrir modal para escaneo continuo
+// Inicialización cuando el DOM está listo
 document.addEventListener('DOMContentLoaded', function() {
     <?php if ($reabrir_modal): ?>
-    // Limpiar formulario y reabrir modal para escaneo continuo
     limpiarFormulario();
     const modal = new bootstrap.Modal(document.getElementById('modalProducto'));
     modal.show();
     <?php if (!empty($error)): ?>
-    // Mostrar alerta de error
     alert('<?php echo addslashes($error); ?>');
     <?php endif; ?>
     setTimeout(function() {
@@ -583,75 +598,40 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 500);
     <?php endif; ?>
     
-    // Al escanear - validar si el código ya existe
+    // Evento en el campo de código de barras
     const codigoBarrasInput = document.getElementById('productoCodigoBarras');
     if (codigoBarrasInput) {
-        // Detectar Enter (escáner envia Enter al final)
-        codigoBarrasInput.addEventListener('keypress', function(e) {
+        // Al presionar Enter (escáner envía Enter)
+        codigoBarrasInput.addEventListener('keydown', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
+                e.stopPropagation();
                 validarCodigoBarras();
             }
         });
         
-        // También validar al perder foco o al cambiar (por si el escáner no envía Enter)
-        codigoBarrasInput.addEventListener('change', function() {
+        // Al salir del campo
+        codigoBarrasInput.addEventListener('blur', function() {
             if (this.value.trim().length >= 3) {
                 validarCodigoBarras();
             }
         });
     }
-});
-
-// Validar código de barras antes de avanzar
-function validarCodigoBarras() {
-    const codigoBarras = document.getElementById('productoCodigoBarras').value.trim();
-    const productoId = document.getElementById('productoId').value;
     
-    console.log('Validando código:', codigoBarras); // Debug
-    
-    if (!codigoBarras) {
-        document.getElementById('productoNombre').focus();
-        return;
+    // Validar antes de enviar el formulario
+    const formProducto = document.getElementById('formProducto');
+    if (formProducto) {
+        formProducto.addEventListener('submit', function(e) {
+            const codigoBarras = document.getElementById('productoCodigoBarras').value.trim();
+            if (codigoBarras && !codigoBarrasValidado) {
+                e.preventDefault();
+                alert('Por favor espera mientras se valida el código de barras');
+                validarCodigoBarras();
+                return false;
+            }
+        });
     }
-    
-    fetch(`../api/buscar_producto.php?codigo_barras=${encodeURIComponent(codigoBarras)}`)
-        .then(response => {
-            console.log('Respuesta recibida'); // Debug
-            return response.json();
-        })
-        .then(data => {
-            console.log('Datos:', data); // Debug
-            if (data.success && data.producto) {
-                // Si estamos editando el mismo producto, permitir
-                if (productoId && data.producto.id == productoId) {
-                    document.getElementById('productoNombre').focus();
-                    return;
-                }
-                // Código ya existe - alertar y limpiar
-                alert('El código de barras ya existe. Producto: "' + data.producto.nombre + '"');
-                document.getElementById('productoCodigoBarras').value = '';
-                document.getElementById('productoCodigoBarras').focus();
-            } else {
-                // Código no existe - permitir avanzar
-                console.log('Código disponible, avanzando...'); // Debug
-                document.getElementById('productoNombre').focus();
-            }
-        })
-        .catch(error => {
-            console.error('Error en validación:', error);
-            document.getElementById('productoNombre').focus();
-        });
-            } else {
-                // Código no existe - permitir avanzar
-                document.getElementById('productoNombre').focus();
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            document.getElementById('productoNombre').focus();
-        });
-}
+});
 </script>
 
 <?php include 'includes/footer.php'; ?>
