@@ -583,17 +583,51 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 500);
     <?php endif; ?>
     
-    // Al escanear (Enter), pasar al siguiente campo sin buscar
+    // Al escanear (Enter), validar si el código ya existe
     const codigoBarrasInput = document.getElementById('productoCodigoBarras');
     if (codigoBarrasInput) {
         codigoBarrasInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                document.getElementById('productoNombre').focus();
+                validarCodigoBarras();
             }
         });
     }
 });
+
+// Validar código de barras antes de avanzar
+function validarCodigoBarras() {
+    const codigoBarras = document.getElementById('productoCodigoBarras').value.trim();
+    const productoId = document.getElementById('productoId').value;
+    
+    if (!codigoBarras) {
+        document.getElementById('productoNombre').focus();
+        return;
+    }
+    
+    fetch(`../api/buscar_producto.php?codigo_barras=${encodeURIComponent(codigoBarras)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.producto) {
+                // Si estamos editando el mismo producto, permitir
+                if (productoId && data.producto.id == productoId) {
+                    document.getElementById('productoNombre').focus();
+                    return;
+                }
+                // Código ya existe - alertar y limpiar
+                alert('El código de barras ya existe. Producto: "' + data.producto.nombre + '"');
+                document.getElementById('productoCodigoBarras').value = '';
+                document.getElementById('productoCodigoBarras').focus();
+            } else {
+                // Código no existe - permitir avanzar
+                document.getElementById('productoNombre').focus();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('productoNombre').focus();
+        });
+}
 </script>
 
 <?php include 'includes/footer.php'; ?>

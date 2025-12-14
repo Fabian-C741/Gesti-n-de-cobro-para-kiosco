@@ -631,32 +631,38 @@ function eliminarProducto(id, nombre) {
     new bootstrap.Modal(document.getElementById('modalEliminar')).show();
 }
 
-function buscarPorCodigoBarras(modo) {
-    const codigoBarras = document.getElementById(`codigo_barras_${modo}`).value.trim();
+// Validar código de barras antes de avanzar
+function validarCodigoBarras(modo, productoId) {
+    const inputId = modo === 'crear' ? 'codigo_barras_crear' : 'edit_codigo_barras';
+    const nombreId = modo === 'crear' ? 'nombre_crear' : 'edit_nombre';
+    const codigoBarras = document.getElementById(inputId).value.trim();
     
     if (!codigoBarras) {
+        document.getElementById(nombreId).focus();
         return;
     }
     
-    // Solo buscar para editar si el usuario lo solicita explícitamente con el botón
     fetch(`../api/buscar_producto.php?codigo_barras=${encodeURIComponent(codigoBarras)}`)
         .then(response => response.json())
         .then(data => {
             if (data.success && data.producto) {
-                // Producto encontrado - preguntar si quiere editar
-                if (confirm(`El producto "${data.producto.nombre}" ya existe. ¿Deseas editarlo?`)) {
-                    const modalCrear = bootstrap.Modal.getInstance(document.getElementById('modalCrear'));
-                    if (modalCrear) modalCrear.hide();
-                    editarProducto(data.producto);
+                // Si estamos editando el mismo producto, permitir
+                if (productoId && data.producto.id == productoId) {
+                    document.getElementById(nombreId).focus();
+                    return;
                 }
+                // Código ya existe - alertar y limpiar
+                alert('El código de barras ya existe. Producto: "' + data.producto.nombre + '"');
+                document.getElementById(inputId).value = '';
+                document.getElementById(inputId).focus();
             } else {
-                // No mostrar alerta - simplemente pasar al siguiente campo
-                document.getElementById('nombre_crear').focus();
+                // Código no existe - permitir avanzar
+                document.getElementById(nombreId).focus();
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            document.getElementById('nombre_crear').focus();
+            document.getElementById(nombreId).focus();
         });
 }
 
@@ -686,13 +692,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 500);
     <?php endif; ?>
     
-    // Al escanear (Enter), pasar al siguiente campo sin buscar
+    // Al escanear (Enter), validar si el código ya existe
     const codigoBarrasCrear = document.getElementById('codigo_barras_crear');
     if (codigoBarrasCrear) {
         codigoBarrasCrear.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                document.getElementById('nombre_crear').focus();
+                validarCodigoBarras('crear', null);
             }
         });
     }
@@ -702,7 +708,8 @@ document.addEventListener('DOMContentLoaded', function() {
         codigoBarrasEditar.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                document.getElementById('edit_nombre').focus();
+                const editId = document.getElementById('edit_id').value;
+                validarCodigoBarras('edit', editId);
             }
         });
     }
