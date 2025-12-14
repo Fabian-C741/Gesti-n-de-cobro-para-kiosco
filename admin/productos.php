@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         if ($action === 'crear') {
             $codigo = sanitize_input($_POST['codigo'] ?? '');
-            $codigo_barras = sanitize_input($_POST['codigo_barras'] ?? '');
+            $codigo_barras = trim($_POST['codigo_barras'] ?? '');
             $nombre = sanitize_input($_POST['nombre']);
             $descripcion = sanitize_input($_POST['descripcion'] ?? '');
             $precio_compra = floatval($_POST['precio_compra'] ?? 0);
@@ -29,11 +29,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stock_minimo = intval($_POST['stock_minimo'] ?? 0);
             $categoria_id = !empty($_POST['categoria_id']) ? intval($_POST['categoria_id']) : null;
             
-            // Validar código de barras duplicado (solo si se proporciona uno)
+            // Validar código de barras duplicado SIEMPRE antes de crear
             if (!empty($codigo_barras)) {
-                $stmt_check = $db->prepare("SELECT id, nombre FROM productos WHERE codigo_barras = ?");
+                $stmt_check = $db->prepare("SELECT id, nombre FROM productos WHERE codigo_barras = ? LIMIT 1");
                 $stmt_check->execute([$codigo_barras]);
-                $producto_existente = $stmt_check->fetch();
+                $producto_existente = $stmt_check->fetch(PDO::FETCH_ASSOC);
                 
                 if ($producto_existente) {
                     $error = "El código de barras ya existe. Producto: \"{$producto_existente['nombre']}\"";
@@ -41,81 +41,82 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
             
+            // SOLO continuar si NO hay error
             if (empty($error)) {
-            // Manejo de imagen
-            $imagen_nombre = '';
-            if (isset($_FILES['imagen']) && $_FILES['imagen']['error'] !== UPLOAD_ERR_NO_FILE) {
-                if ($_FILES['imagen']['error'] !== UPLOAD_ERR_OK) {
-                    $upload_errors = [
-                        UPLOAD_ERR_INI_SIZE => 'El archivo excede el tamaño máximo permitido por el servidor',
-                        UPLOAD_ERR_FORM_SIZE => 'El archivo excede el tamaño máximo permitido',
-                        UPLOAD_ERR_PARTIAL => 'El archivo se subió parcialmente',
-                        UPLOAD_ERR_NO_TMP_DIR => 'Falta la carpeta temporal',
-                        UPLOAD_ERR_CANT_WRITE => 'Error al escribir el archivo en disco',
-                        UPLOAD_ERR_EXTENSION => 'Una extensión de PHP detuvo la subida'
-                    ];
-                    $error = $upload_errors[$_FILES['imagen']['error']] ?? 'Error desconocido al subir la imagen';
-                } else {
-                    $archivo = $_FILES['imagen'];
-                    
-                    // Validar tamaño
-                    if ($archivo['size'] > MAX_FILE_SIZE) {
-                        $error = 'La imagen es demasiado grande. Máximo ' . (MAX_FILE_SIZE / 1024 / 1024) . 'MB';
-                    }
-                    // Validar extensión
-                    elseif (!validate_image_extension($archivo['name'])) {
-                        $error = 'Formato de imagen no permitido. Use: ' . implode(', ', ALLOWED_EXTENSIONS);
-                    }
-                    // Validar que sea una imagen real
-                    elseif (!getimagesize($archivo['tmp_name'])) {
-                        $error = 'El archivo no es una imagen válida';
+                // Manejo de imagen
+                $imagen_nombre = '';
+                if (isset($_FILES['imagen']) && $_FILES['imagen']['error'] !== UPLOAD_ERR_NO_FILE) {
+                    if ($_FILES['imagen']['error'] !== UPLOAD_ERR_OK) {
+                        $upload_errors = [
+                            UPLOAD_ERR_INI_SIZE => 'El archivo excede el tamaño máximo permitido por el servidor',
+                            UPLOAD_ERR_FORM_SIZE => 'El archivo excede el tamaño máximo permitido',
+                            UPLOAD_ERR_PARTIAL => 'El archivo se subió parcialmente',
+                            UPLOAD_ERR_NO_TMP_DIR => 'Falta la carpeta temporal',
+                            UPLOAD_ERR_CANT_WRITE => 'Error al escribir el archivo en disco',
+                            UPLOAD_ERR_EXTENSION => 'Una extensión de PHP detuvo la subida'
+                        ];
+                        $error = $upload_errors[$_FILES['imagen']['error']] ?? 'Error desconocido al subir la imagen';
                     } else {
-                        $imagen_nombre = generate_unique_filename($archivo['name']);
-                        $ruta_destino = UPLOAD_DIR . $imagen_nombre;
+                        $archivo = $_FILES['imagen'];
                         
-                        if (!move_uploaded_file($archivo['tmp_name'], $ruta_destino)) {
-                            $error = 'Error al subir la imagen. Verifica permisos de la carpeta uploads/';
+                        // Validar tamaño
+                        if ($archivo['size'] > MAX_FILE_SIZE) {
+                            $error = 'La imagen es demasiado grande. Máximo ' . (MAX_FILE_SIZE / 1024 / 1024) . 'MB';
+                        }
+                        // Validar extensión
+                        elseif (!validate_image_extension($archivo['name'])) {
+                            $error = 'Formato de imagen no permitido. Use: ' . implode(', ', ALLOWED_EXTENSIONS);
+                        }
+                        // Validar que sea una imagen real
+                        elseif (!getimagesize($archivo['tmp_name'])) {
+                            $error = 'El archivo no es una imagen válida';
+                        } else {
+                            $imagen_nombre = generate_unique_filename($archivo['name']);
+                            $ruta_destino = UPLOAD_DIR . $imagen_nombre;
+                            
+                            if (!move_uploaded_file($archivo['tmp_name'], $ruta_destino)) {
+                                $error = 'Error al subir la imagen. Verifica permisos de la carpeta uploads/';
+                            }
                         }
                     }
                 }
-            }
-            
-            if (empty($error)) {
-                try {
-                    // Verificar si la columna punto_venta_id existe
-                    $has_pv = column_exists($db, 'productos', 'punto_venta_id');
-                    
-                    if ($has_pv) {
-                        $punto_venta_id = get_user_punto_venta_id();
-                        $stmt = $db->prepare("
-                            INSERT INTO productos (codigo, codigo_barras, nombre, descripcion, precio_compra, precio_venta, 
-                                                 stock, stock_minimo, categoria_id, usuario_id, imagen, punto_venta_id)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        ");
-                        $stmt->execute([
-                            $codigo, $codigo_barras, $nombre, $descripcion, $precio_compra, $precio_venta,
-                            $stock, $stock_minimo, $categoria_id, $_SESSION['user_id'], $imagen_nombre, $punto_venta_id
-                        ]);
-                    } else {
-                        $stmt = $db->prepare("
-                            INSERT INTO productos (codigo, codigo_barras, nombre, descripcion, precio_compra, precio_venta, 
-                                                 stock, stock_minimo, categoria_id, usuario_id, imagen)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        ");
-                        $stmt->execute([
-                            $codigo, $codigo_barras, $nombre, $descripcion, $precio_compra, $precio_venta,
-                            $stock, $stock_minimo, $categoria_id, $_SESSION['user_id'], $imagen_nombre
-                        ]);
+                
+                if (empty($error)) {
+                    try {
+                        // Verificar si la columna punto_venta_id existe
+                        $has_pv = column_exists($db, 'productos', 'punto_venta_id');
+                        
+                        if ($has_pv) {
+                            $punto_venta_id = get_user_punto_venta_id();
+                            $stmt = $db->prepare("
+                                INSERT INTO productos (codigo, codigo_barras, nombre, descripcion, precio_compra, precio_venta, 
+                                                     stock, stock_minimo, categoria_id, usuario_id, imagen, punto_venta_id)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            ");
+                            $stmt->execute([
+                                $codigo, $codigo_barras, $nombre, $descripcion, $precio_compra, $precio_venta,
+                                $stock, $stock_minimo, $categoria_id, $_SESSION['user_id'], $imagen_nombre, $punto_venta_id
+                            ]);
+                        } else {
+                            $stmt = $db->prepare("
+                                INSERT INTO productos (codigo, codigo_barras, nombre, descripcion, precio_compra, precio_venta, 
+                                                     stock, stock_minimo, categoria_id, usuario_id, imagen)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            ");
+                            $stmt->execute([
+                                $codigo, $codigo_barras, $nombre, $descripcion, $precio_compra, $precio_venta,
+                                $stock, $stock_minimo, $categoria_id, $_SESSION['user_id'], $imagen_nombre
+                            ]);
+                        }
+                        
+                        log_activity($db, $_SESSION['user_id'], 'crear_producto', "Producto: $nombre");
+                        $success = 'Producto creado exitosamente. ¡Listo para escanear otro!';
+                        $reabrir_modal = true;
+                    } catch (PDOException $e) {
+                        $error = 'Error al crear el producto';
                     }
-                    
-                    log_activity($db, $_SESSION['user_id'], 'crear_producto', "Producto: $nombre");
-                    $success = 'Producto creado exitosamente. ¡Listo para escanear otro!';
-                    $reabrir_modal = true;
-                } catch (PDOException $e) {
-                    $error = 'Error al crear el producto';
                 }
             }
-            } // Cierre del if de validación código de barras
         } elseif ($action === 'editar') {
             $id = intval($_POST['id']);
             $codigo = sanitize_input($_POST['codigo'] ?? '');
