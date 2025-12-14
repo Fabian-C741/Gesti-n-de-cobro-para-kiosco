@@ -263,7 +263,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     } else {
                         // Buscar por email o username
                         $stmt = $db->prepare("
-                            SELECT id, nombre, email, username, password, user_rol, activo 
+                            SELECT id, nombre, email, username, password, user_rol, activo, punto_venta_id 
                             FROM usuarios 
                             WHERE (email = ? OR username = ?) AND activo = 1
                         ");
@@ -310,6 +310,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $_SESSION['token_sesion'] = $token_sesion;
                             $_SESSION['login_ip'] = $client_ip;
                             $_SESSION['login_time'] = time();
+                            $_SESSION['punto_venta_id'] = $usuario['punto_venta_id'] ?? null;
                             
                             // Regenerar ID de sesión para prevenir session fixation
                             session_regenerate_id(true);

@@ -46,10 +46,13 @@ try {
     // Generar número de venta único
     $numero_venta = 'V-' . date('Ymd') . '-' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
     
+    // Obtener punto_venta_id del usuario
+    $punto_venta_id = $_SESSION['punto_venta_id'] ?? null;
+    
     // Insertar venta
     $stmt = $db->prepare("
-        INSERT INTO ventas (numero_venta, usuario_id, subtotal, descuento, total, metodo_pago, estado)
-        VALUES (?, ?, ?, ?, ?, ?, 'completada')
+        INSERT INTO ventas (numero_venta, usuario_id, subtotal, descuento, total, metodo_pago, estado, punto_venta_id)
+        VALUES (?, ?, ?, ?, ?, ?, 'completada', ?)
     ");
     $stmt->execute([
         $numero_venta,
@@ -57,7 +60,8 @@ try {
         $subtotal,
         $descuento,
         $total,
-        $metodo_pago
+        $metodo_pago,
+        $punto_venta_id
     ]);
     
     $venta_id = $db->lastInsertId();

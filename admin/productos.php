@@ -67,14 +67,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             if (empty($error)) {
                 try {
+                    $punto_venta_id = get_user_punto_venta_id();
                     $stmt = $db->prepare("
                         INSERT INTO productos (codigo, nombre, descripcion, precio_compra, precio_venta, 
-                                             stock, stock_minimo, categoria_id, usuario_id, imagen)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                             stock, stock_minimo, categoria_id, usuario_id, imagen, punto_venta_id)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ");
                     $stmt->execute([
                         $codigo, $nombre, $descripcion, $precio_compra, $precio_venta,
-                        $stock, $stock_minimo, $categoria_id, $_SESSION['user_id'], $imagen_nombre
+                        $stock, $stock_minimo, $categoria_id, $_SESSION['user_id'], $imagen_nombre, $punto_venta_id
                     ]);
                     
                     log_activity($db, $_SESSION['user_id'], 'crear_producto', "Producto: $nombre");
@@ -194,9 +195,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Obtener productos
+// Obtener productos (filtrado por punto de venta)
 $search = $_GET['search'] ?? '';
 $categoria_filter = $_GET['categoria'] ?? '';
+$pv_id = get_user_punto_venta_id();
 
 $query = "
     SELECT p.*, c.nombre as categoria_nombre 
@@ -206,6 +208,12 @@ $query = "
 ";
 
 $params = [];
+
+// Filtrar por punto de venta si el usuario tiene uno asignado
+if ($pv_id) {
+    $query .= " AND (p.punto_venta_id = ? OR p.punto_venta_id IS NULL)";
+    $params[] = $pv_id;
+}
 
 if (!empty($search)) {
     $query .= " AND (p.nombre LIKE ? OR p.codigo LIKE ? OR p.descripcion LIKE ?)";
@@ -226,8 +234,13 @@ $stmt = $db->prepare($query);
 $stmt->execute($params);
 $productos = $stmt->fetchAll();
 
-// Obtener categorías para el filtro
-$stmt_cat = $db->query("SELECT * FROM categorias WHERE activo = 1 ORDER BY nombre");
+// Obtener categorías para el filtro (filtrado por punto de venta)
+if ($pv_id) {
+    $stmt_cat = $db->prepare("SELECT * FROM categorias WHERE activo = 1 AND (punto_venta_id = ? OR punto_venta_id IS NULL) ORDER BY nombre");
+    $stmt_cat->execute([$pv_id]);
+} else {
+    $stmt_cat = $db->query("SELECT * FROM categorias WHERE activo = 1 ORDER BY nombre");
+}
 $categorias = $stmt_cat->fetchAll();
 
 $page_title = 'Productos';

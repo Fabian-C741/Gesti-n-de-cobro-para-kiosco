@@ -12,51 +12,108 @@ verificarTenantActivo();
 
 $db = Database::getInstance()->getConnection();
 
-// Obtener estadísticas generales
+// Obtener filtro de punto de venta (compatible: si no tiene, ve todo)
+$pv_filter = get_punto_venta_filter();
+$pv_sql = $pv_filter['sql'];
+$pv_params = $pv_filter['params'];
+
+// Obtener estadísticas generales (filtradas por punto de venta si aplica)
 $stats_ventas = get_sales_stats($db);
 
-// Total usuarios
-$stmt = $db->query("SELECT COUNT(*) as total FROM usuarios WHERE user_rol = 'vendedor'");
+// Total usuarios (solo del punto de venta si aplica)
+$pv_id = get_user_punto_venta_id();
+if ($pv_id) {
+    $stmt = $db->prepare("SELECT COUNT(*) as total FROM usuarios WHERE user_rol = 'vendedor' AND (punto_venta_id = ? OR punto_venta_id IS NULL)");
+    $stmt->execute([$pv_id]);
+} else {
+    $stmt = $db->query("SELECT COUNT(*) as total FROM usuarios WHERE user_rol = 'vendedor'");
+}
 $total_usuarios = $stmt->fetch()['total'];
 
-// Total productos
-$stmt = $db->query("SELECT COUNT(*) as total FROM productos WHERE activo = 1");
+// Total productos (filtrado por punto de venta)
+if ($pv_id) {
+    $stmt = $db->prepare("SELECT COUNT(*) as total FROM productos WHERE activo = 1 AND (punto_venta_id = ? OR punto_venta_id IS NULL)");
+    $stmt->execute([$pv_id]);
+} else {
+    $stmt = $db->query("SELECT COUNT(*) as total FROM productos WHERE activo = 1");
+}
 $total_productos = $stmt->fetch()['total'];
 
-// Productos con stock bajo
-$stmt = $db->query("SELECT COUNT(*) as total FROM productos WHERE stock <= stock_minimo AND activo = 1");
+// Productos con stock bajo (filtrado por punto de venta)
+if ($pv_id) {
+    $stmt = $db->prepare("SELECT COUNT(*) as total FROM productos WHERE stock <= stock_minimo AND activo = 1 AND (punto_venta_id = ? OR punto_venta_id IS NULL)");
+    $stmt->execute([$pv_id]);
+} else {
+    $stmt = $db->query("SELECT COUNT(*) as total FROM productos WHERE stock <= stock_minimo AND activo = 1");
+}
 $stock_bajo = $stmt->fetch()['total'];
 
-// Ventas del día
+// Ventas del día (filtrado por punto de venta)
 $hoy = date('Y-m-d');
-$stmt = $db->prepare("
-    SELECT COUNT(*) as total, COALESCE(SUM(total), 0) as monto 
-    FROM ventas 
-    WHERE DATE(fecha_venta) = ? AND estado = 'completada'
-");
-$stmt->execute([$hoy]);
+if ($pv_id) {
+    $stmt = $db->prepare("
+        SELECT COUNT(*) as total, COALESCE(SUM(total), 0) as monto 
+        FROM ventas 
+        WHERE DATE(fecha_venta) = ? AND estado = 'completada' AND (punto_venta_id = ? OR punto_venta_id IS NULL)
+    ");
+    $stmt->execute([$hoy, $pv_id]);
+} else {
+    $stmt = $db->prepare("
+        SELECT COUNT(*) as total, COALESCE(SUM(total), 0) as monto 
+        FROM ventas 
+        WHERE DATE(fecha_venta) = ? AND estado = 'completada'
+    ");
+    $stmt->execute([$hoy]);
+}
 $ventas_hoy = $stmt->fetch();
 
-// Top 5 productos más vendidos
-$stmt = $db->query("
-    SELECT p.nombre, p.imagen, SUM(vd.cantidad) as total_vendido, SUM(vd.subtotal) as total_monto
-    FROM venta_detalle vd
-    JOIN productos p ON vd.producto_id = p.id
-    JOIN ventas v ON vd.venta_id = v.id
-    WHERE v.estado = 'completada' AND v.fecha_venta >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-    GROUP BY p.id
-    ORDER BY total_vendido DESC
-    LIMIT 5
-");
+// Top 5 productos más vendidos (filtrado por punto de venta)
+if ($pv_id) {
+    $stmt = $db->prepare("
+        SELECT p.nombre, p.imagen, SUM(vd.cantidad) as total_vendido, SUM(vd.subtotal) as total_monto
+        FROM venta_detalle vd
+        JOIN productos p ON vd.producto_id = p.id
+        JOIN ventas v ON vd.venta_id = v.id
+        WHERE v.estado = 'completada' AND v.fecha_venta >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+          AND (p.punto_venta_id = ? OR p.punto_venta_id IS NULL)
+        GROUP BY p.id
+        ORDER BY total_vendido DESC
+        LIMIT 5
+    ");
+    $stmt->execute([$pv_id]);
+} else {
+    $stmt = $db->query("
+        SELECT p.nombre, p.imagen, SUM(vd.cantidad) as total_vendido, SUM(vd.subtotal) as total_monto
+        FROM venta_detalle vd
+        JOIN productos p ON vd.producto_id = p.id
+        JOIN ventas v ON vd.venta_id = v.id
+        WHERE v.estado = 'completada' AND v.fecha_venta >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        GROUP BY p.id
+        ORDER BY total_vendido DESC
+        LIMIT 5
+    ");
+}
 $top_productos = $stmt->fetchAll();
 
-// Últimas ventas
-$stmt = $db->query("
-    SELECT v.*, u.nombre as vendedor
-    FROM ventas v
-    JOIN usuarios u ON v.usuario_id = u.id
-    ORDER BY v.fecha_venta DESC
-    LIMIT 10
+// Últimas ventas (filtrado por punto de venta)
+if ($pv_id) {
+    $stmt = $db->prepare("
+        SELECT v.*, u.nombre as vendedor
+        FROM ventas v
+        JOIN usuarios u ON v.usuario_id = u.id
+        WHERE v.punto_venta_id = ? OR v.punto_venta_id IS NULL
+        ORDER BY v.fecha_venta DESC
+        LIMIT 10
+    ");
+    $stmt->execute([$pv_id]);
+} else {
+    $stmt = $db->query("
+        SELECT v.*, u.nombre as vendedor
+        FROM ventas v
+        JOIN usuarios u ON v.usuario_id = u.id
+        ORDER BY v.fecha_venta DESC
+        LIMIT 10
+    ");
 ");
 $ultimas_ventas = $stmt->fetchAll();
 

@@ -82,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     // Buscar usuario (puede ser por email o username)
                     $stmt = $conn_tenant->prepare("
-                        SELECT id, nombre, email, username, password, rol, activo 
+                        SELECT id, nombre, email, username, password, rol, activo, punto_venta_id 
                         FROM usuarios 
                         WHERE (email = ? OR username = ?) AND activo = 1
                     ");
@@ -108,6 +108,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $_SESSION['user_email'] = $user['email'];
                         $_SESSION['user_rol'] = $user['rol'];
                         $_SESSION['login_time'] = time();
+                        $_SESSION['punto_venta_id'] = $user['punto_venta_id'] ?? null;
                         
                         // Redirigir según rol
                         if ($user['rol'] === 'admin') {

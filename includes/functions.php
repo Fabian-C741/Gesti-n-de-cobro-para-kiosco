@@ -333,3 +333,45 @@ function update_stock($db, $producto_id, $cantidad, $operacion = 'restar') {
         return false;
     }
 }
+/**
+ * Obtener el punto_venta_id del usuario actual
+ * Retorna null si no tiene (ve todo) o el ID si tiene asignado
+ */
+function get_user_punto_venta_id() {
+    return $_SESSION['punto_venta_id'] ?? null;
+}
+
+/**
+ * Construir condición SQL para filtrar por punto de venta
+ * Compatible hacia atrás: si usuario no tiene punto_venta_id, ve todo
+ * @param string $tabla_alias Alias de la tabla (ej: 'p' para productos)
+ * @return array ['sql' => string, 'params' => array]
+ */
+function get_punto_venta_filter($tabla_alias = '') {
+    $punto_venta_id = get_user_punto_venta_id();
+    $prefix = $tabla_alias ? $tabla_alias . '.' : '';
+    
+    if ($punto_venta_id === null) {
+        // Usuario sin punto de venta asignado = ve todo
+        return ['sql' => '1=1', 'params' => []];
+    }
+    
+    // Usuario con punto de venta = ve solo sus datos + datos globales (NULL)
+    return [
+        'sql' => "({$prefix}punto_venta_id = ? OR {$prefix}punto_venta_id IS NULL)",
+        'params' => [$punto_venta_id]
+    ];
+}
+
+/**
+ * Verificar si una columna existe en una tabla
+ */
+function column_exists($db, $table, $column) {
+    try {
+        $stmt = $db->prepare("SHOW COLUMNS FROM $table LIKE ?");
+        $stmt->execute([$column]);
+        return $stmt->fetch() !== false;
+    } catch (PDOException $e) {
+        return false;
+    }
+}
