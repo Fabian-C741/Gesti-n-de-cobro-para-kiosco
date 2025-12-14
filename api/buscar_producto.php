@@ -9,35 +9,11 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-// DEBUG: Ver qué hay en la sesión
-$debug_session = [
-    'tenant_bd' => $_SESSION['tenant_bd'] ?? 'NO EXISTE',
-    'tenant_bd_host' => $_SESSION['tenant_bd_host'] ?? 'NO EXISTE',
-    'tenant_bd_user' => $_SESSION['tenant_bd_user'] ?? 'NO EXISTE',
-    'has_pass' => isset($_SESSION['tenant_bd_pass']) ? 'SI' : 'NO'
-];
+// Usar exactamente la misma conexión que productos.php
+require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../includes/Database.php';
 
-// Si no hay credenciales del tenant, usar las del config
-if (!isset($_SESSION['tenant_bd'])) {
-    require_once __DIR__ . '/../config/config.php';
-    $host = DB_HOST;
-    $name = DB_NAME;
-    $user = DB_USER;
-    $pass = DB_PASS;
-} else {
-    $host = $_SESSION['tenant_bd_host'];
-    $name = $_SESSION['tenant_bd'];
-    $user = $_SESSION['tenant_bd_user'];
-    $pass = $_SESSION['tenant_bd_pass'];
-}
-
-try {
-    $db = new PDO("mysql:host=$host;dbname=$name;charset=utf8mb4", $user, $pass);
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch (PDOException $e) {
-    echo json_encode(['success' => false, 'message' => 'Error de conexión', 'debug' => $debug_session, 'error' => $e->getMessage()]);
-    exit;
-}
+$db = Database::getInstance()->getConnection();
 
 // Obtener parámetro de búsqueda
 $codigo_barras = trim($_GET['codigo_barras'] ?? '');
@@ -68,7 +44,7 @@ try {
         echo json_encode([
             'success' => false,
             'message' => 'Producto no encontrado',
-            'debug_db' => $name
+            'debug_db' => DB_NAME
         ]);
     }
 } catch (PDOException $e) {
