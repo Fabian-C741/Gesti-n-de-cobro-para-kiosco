@@ -26,6 +26,10 @@ try {
     $count_stmt = $db->query("SELECT COUNT(*) as total FROM productos");
     $total = $count_stmt->fetch(PDO::FETCH_ASSOC)['total'];
     
+    // DEBUG: Listar códigos existentes
+    $codes_stmt = $db->query("SELECT id, codigo_barras, nombre FROM productos WHERE codigo_barras IS NOT NULL AND codigo_barras != '' LIMIT 20");
+    $codigos = $codes_stmt->fetchAll(PDO::FETCH_ASSOC);
+    
     // Buscar en TODOS los productos si existe el código
     if ($excluir_id > 0) {
         $stmt = $db->prepare("SELECT id, nombre FROM productos WHERE codigo_barras = ? AND id != ? LIMIT 1");
@@ -41,14 +45,14 @@ try {
         echo json_encode([
             'existe' => true,
             'nombre' => $producto['nombre'],
-            'id' => $producto['id'],
-            'debug_total_productos' => $total
+            'id' => $producto['id']
         ]);
     } else {
         echo json_encode([
             'existe' => false,
-            'debug_total_productos' => $total,
-            'debug_codigo_buscado' => $codigo_barras
+            'debug_total' => $total,
+            'debug_buscado' => $codigo_barras,
+            'debug_codigos_existentes' => $codigos
         ]);
     }
 } catch (PDOException $e) {
