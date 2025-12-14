@@ -6,21 +6,13 @@ verificarSuperAdmin();
 $error = '';
 $exito = '';
 
-// Obtener lista de tenants para el filtro (incluir estado)
-$stmt = $conn_master->prepare("SELECT id, nombre, estado FROM tenants WHERE activo = 1 ORDER BY nombre");
+// Obtener lista de tenants para el filtro
+$stmt = $conn_master->prepare("SELECT id, nombre FROM tenants WHERE activo = 1 ORDER BY nombre");
 $stmt->execute();
 $tenants = $stmt->fetchAll();
 
 // Filtro por tenant
 $tenant_id = isset($_GET['tenant_id']) ? intval($_GET['tenant_id']) : 0;
-$tenant_actual = null;
-
-// Obtener datos del tenant seleccionado
-if ($tenant_id > 0) {
-    $stmt = $conn_master->prepare("SELECT * FROM tenants WHERE id = ?");
-    $stmt->execute([$tenant_id]);
-    $tenant_actual = $stmt->fetch();
-}
 
 // Procesar acciones
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -245,10 +237,7 @@ $page_title = 'Gestión de Puntos de Venta';
                         <option value="0">-- Seleccionar Cliente --</option>
                         <?php foreach ($tenants as $t): ?>
                             <option value="<?= $t['id'] ?>" <?= $tenant_id == $t['id'] ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($t['nombre']) ?> 
-                                <?php if ($t['estado'] !== 'activo'): ?>
-                                    (<?= ucfirst($t['estado']) ?>)
-                                <?php endif; ?>
+                                <?= htmlspecialchars($t['nombre']) ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -256,53 +245,6 @@ $page_title = 'Gestión de Puntos de Venta';
             </form>
         </div>
     </div>
-
-    <?php if ($tenant_id > 0 && $tenant_actual): ?>
-    
-    <!-- Info del Cliente con Estado (sincronizado con Gestión de Clientes) -->
-    <div class="card mb-4 <?= $tenant_actual['estado'] !== 'activo' ? 'border-warning' : 'border-success' ?>">
-        <div class="card-header d-flex justify-content-between align-items-center <?= $tenant_actual['estado'] !== 'activo' ? 'bg-warning bg-opacity-25' : 'bg-success bg-opacity-10' ?>">
-            <div>
-                <h5 class="mb-0">
-                    <i class="bi bi-building me-2"></i>
-                    <?= htmlspecialchars($tenant_actual['nombre']) ?>
-                </h5>
-                <small class="text-muted">Dominio: <?= htmlspecialchars($tenant_actual['dominio']) ?></small>
-            </div>
-            <div class="d-flex align-items-center gap-2">
-                <?php
-                $estado_colors = [
-                    'activo' => 'success',
-                    'suspendido' => 'warning',
-                    'vencido' => 'danger',
-                    'cancelado' => 'secondary'
-                ];
-                $color = $estado_colors[$tenant_actual['estado']] ?? 'secondary';
-                ?>
-                <span class="badge bg-<?= $color ?> fs-6">
-                    <i class="bi bi-<?= $tenant_actual['estado'] === 'activo' ? 'check-circle' : 'exclamation-triangle' ?> me-1"></i>
-                    <?= ucfirst($tenant_actual['estado']) ?>
-                </span>
-                
-                <!-- Enlace a Gestión de Clientes para cambiar estado -->
-                <a href="tenants.php" class="btn btn-outline-primary btn-sm" title="Ir a Gestión de Clientes">
-                    <i class="bi bi-gear me-1"></i>Gestionar
-                </a>
-            </div>
-        </div>
-        <?php if ($tenant_actual['estado'] !== 'activo'): ?>
-        <div class="card-body bg-warning bg-opacity-10">
-            <div class="alert alert-warning mb-0">
-                <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                <strong>Atención:</strong> Este cliente está <strong><?= $tenant_actual['estado'] ?></strong>. 
-                Los usuarios no pueden acceder al sistema. 
-                <a href="tenants.php" class="alert-link">Ir a Gestión de Clientes para activarlo</a>.
-            </div>
-        </div>
-        <?php endif; ?>
-    </div>
-
-    <?php endif; ?>
 
     <?php if ($tenant_id > 0): ?>
     <!-- Tabla de Puntos de Venta -->
