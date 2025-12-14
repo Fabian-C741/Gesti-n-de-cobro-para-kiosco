@@ -46,23 +46,36 @@ try {
     // Generar número de venta único
     $numero_venta = 'V-' . date('Ymd') . '-' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
     
-    // Obtener punto_venta_id del usuario
-    $punto_venta_id = $_SESSION['punto_venta_id'] ?? null;
-    
-    // Insertar venta
-    $stmt = $db->prepare("
-        INSERT INTO ventas (numero_venta, usuario_id, subtotal, descuento, total, metodo_pago, estado, punto_venta_id)
-        VALUES (?, ?, ?, ?, ?, ?, 'completada', ?)
-    ");
-    $stmt->execute([
-        $numero_venta,
-        $_SESSION['user_id'],
-        $subtotal,
-        $descuento,
-        $total,
-        $metodo_pago,
-        $punto_venta_id
-    ]);
+    // Insertar venta (compatible con o sin columna punto_venta_id)
+    if (column_exists($db, 'ventas', 'punto_venta_id')) {
+        $punto_venta_id = $_SESSION['punto_venta_id'] ?? null;
+        $stmt = $db->prepare("
+            INSERT INTO ventas (numero_venta, usuario_id, subtotal, descuento, total, metodo_pago, estado, punto_venta_id)
+            VALUES (?, ?, ?, ?, ?, ?, 'completada', ?)
+        ");
+        $stmt->execute([
+            $numero_venta,
+            $_SESSION['user_id'],
+            $subtotal,
+            $descuento,
+            $total,
+            $metodo_pago,
+            $punto_venta_id
+        ]);
+    } else {
+        $stmt = $db->prepare("
+            INSERT INTO ventas (numero_venta, usuario_id, subtotal, descuento, total, metodo_pago, estado)
+            VALUES (?, ?, ?, ?, ?, ?, 'completada')
+        ");
+        $stmt->execute([
+            $numero_venta,
+            $_SESSION['user_id'],
+            $subtotal,
+            $descuento,
+            $total,
+            $metodo_pago
+        ]);
+    }
     
     $venta_id = $db->lastInsertId();
     

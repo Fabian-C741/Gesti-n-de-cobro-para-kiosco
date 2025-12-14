@@ -20,14 +20,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($action === 'crear') {
             $nombre = sanitize_input($_POST['nombre']);
             $descripcion = sanitize_input($_POST['descripcion'] ?? '');
-            $punto_venta_id = get_user_punto_venta_id();
             
             try {
                 $stmt = $db->prepare("
-                    INSERT INTO categorias (nombre, descripcion, usuario_id, punto_venta_id)
-                    VALUES (?, ?, ?, ?)
+                    INSERT INTO categorias (nombre, descripcion, usuario_id)
+                    VALUES (?, ?, ?)
                 ");
-                $stmt->execute([$nombre, $descripcion, $_SESSION['user_id'], $punto_venta_id]);
+                $stmt->execute([$nombre, $descripcion, $_SESSION['user_id']]);
                 
                 log_activity($db, $_SESSION['user_id'], 'crear_categoria', "Categoría: $nombre");
                 $success = 'Categoría creada exitosamente';
@@ -81,9 +80,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Obtener categorías (filtrado por punto de venta)
+// Obtener categorías
 $search = $_GET['search'] ?? '';
-$pv_id = get_user_punto_venta_id();
 
 $query = "
     SELECT c.*, 
@@ -94,12 +92,6 @@ $query = "
 ";
 
 $params = [];
-
-// Filtrar por punto de venta si el usuario tiene uno asignado
-if ($pv_id) {
-    $query .= " AND (c.punto_venta_id = ? OR c.punto_venta_id IS NULL)";
-    $params[] = $pv_id;
-}
 
 if (!empty($search)) {
     $query .= " AND (c.nombre LIKE ? OR c.descripcion LIKE ?)";

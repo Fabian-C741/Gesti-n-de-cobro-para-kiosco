@@ -20,41 +20,25 @@ if ($_SESSION['user_rol'] !== 'cajero') {
 
 $page_title = 'Punto de Venta';
 $db = Database::getInstance()->getConnection();
-$pv_id = get_user_punto_venta_id();
 
-// Obtener productos solo si hay búsqueda (filtrado por punto de venta)
+// Obtener productos solo si hay búsqueda
 $buscar = trim($_GET['buscar'] ?? '');
 $productos = [];
 $error_busqueda = '';
 
 if (!empty($buscar) && strlen($buscar) >= 3) {
     try {
-        if ($pv_id) {
-            $query = "SELECT p.*, c.nombre as categoria_nombre 
-                      FROM productos p
-                      LEFT JOIN categorias c ON p.categoria_id = c.id
-                      WHERE p.activo = 1
-                      AND (p.punto_venta_id = ? OR p.punto_venta_id IS NULL)
-                      AND (p.nombre LIKE ? OR p.codigo LIKE ? OR p.codigo_barras LIKE ?)
-                      ORDER BY p.nombre ASC 
-                      LIMIT 50";
-            
-            $stmt = $db->prepare($query);
-            $buscar_param = "%$buscar%";
-            $stmt->execute([$pv_id, $buscar_param, $buscar_param, $buscar_param]);
-        } else {
-            $query = "SELECT p.*, c.nombre as categoria_nombre 
-                      FROM productos p
-                      LEFT JOIN categorias c ON p.categoria_id = c.id
-                      WHERE p.activo = 1
-                      AND (p.nombre LIKE ? OR p.codigo LIKE ? OR p.codigo_barras LIKE ?)
-                      ORDER BY p.nombre ASC 
-                      LIMIT 50";
-            
-            $stmt = $db->prepare($query);
-            $buscar_param = "%$buscar%";
-            $stmt->execute([$buscar_param, $buscar_param, $buscar_param]);
-        }
+        $query = "SELECT p.*, c.nombre as categoria_nombre 
+                  FROM productos p
+                  LEFT JOIN categorias c ON p.categoria_id = c.id
+                  WHERE p.activo = 1
+                  AND (p.nombre LIKE ? OR p.codigo LIKE ? OR p.codigo_barras LIKE ?)
+                  ORDER BY p.nombre ASC 
+                  LIMIT 50";
+        
+        $stmt = $db->prepare($query);
+        $buscar_param = "%$buscar%";
+        $stmt->execute([$buscar_param, $buscar_param, $buscar_param]);
         $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (Exception $e) {
         $error_busqueda = 'Error al buscar productos: ' . $e->getMessage();

@@ -12,9 +12,8 @@ $db = Database::getInstance()->getConnection();
 $fecha_desde = $_GET['fecha_desde'] ?? date('Y-m-01');
 $fecha_hasta = $_GET['fecha_hasta'] ?? date('Y-m-d');
 $vendedor_id = $_GET['vendedor'] ?? '';
-$pv_id = get_user_punto_venta_id();
 
-// Obtener ventas (filtrado por punto de venta)
+// Obtener ventas
 $query = "
     SELECT v.*, u.nombre as vendedor_nombre,
            (SELECT SUM(vd.cantidad * vd.precio_unitario) 
@@ -27,12 +26,6 @@ $query = "
 
 $params = [$fecha_desde, $fecha_hasta];
 
-// Filtrar por punto de venta si el usuario tiene uno asignado
-if ($pv_id) {
-    $query .= " AND (v.punto_venta_id = ? OR v.punto_venta_id IS NULL)";
-    $params[] = $pv_id;
-}
-
 if (!empty($vendedor_id)) {
     $query .= " AND v.usuario_id = ?";
     $params[] = $vendedor_id;
@@ -44,13 +37,8 @@ $stmt = $db->prepare($query);
 $stmt->execute($params);
 $ventas = $stmt->fetchAll();
 
-// Obtener vendedores para filtro (filtrado por punto de venta)
-if ($pv_id) {
-    $stmt_vendedores = $db->prepare("SELECT id, nombre FROM usuarios WHERE user_rol = 'vendedor' AND (punto_venta_id = ? OR punto_venta_id IS NULL) ORDER BY nombre");
-    $stmt_vendedores->execute([$pv_id]);
-} else {
-    $stmt_vendedores = $db->query("SELECT id, nombre FROM usuarios WHERE user_rol = 'vendedor' ORDER BY nombre");
-}
+// Obtener vendedores para filtro
+$stmt_vendedores = $db->query("SELECT id, nombre FROM usuarios WHERE user_rol = 'vendedor' ORDER BY nombre");
 $vendedores = $stmt_vendedores->fetchAll();
 
 $page_title = 'Ventas';
