@@ -13,6 +13,9 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $db = Database::getInstance()->getConnection();
+
+// DEBUG: Ver qué base de datos estamos usando
+$db_name = $db->query("SELECT DATABASE()")->fetchColumn();
 $usuario_id = $_SESSION['user_id'];
 $pv_id = $_SESSION['punto_venta_id'] ?? null;
 
@@ -47,12 +50,14 @@ try {
     } else {
         echo json_encode([
             'success' => false,
-            'message' => 'Producto no encontrado'
+            'message' => 'Producto no encontrado',
+            'debug_db' => $db_name,
+            'debug_codigo' => $codigo_barras
         ]);
     }
 } catch (PDOException $e) {
     echo json_encode([
         'success' => false,
-        'message' => 'Error en la búsqueda'
+        'message' => 'Error en la búsqueda: ' . $e->getMessage()
     ]);
 }

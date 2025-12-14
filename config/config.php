@@ -63,16 +63,18 @@ if ($esLocal) {
     define('DEBUG_MODE', true); // Cambiar a false cuando esté funcionando
 }
 
-// Configuración de sesiones seguras
-ini_set('session.cookie_httponly', 1);
-ini_set('session.use_only_cookies', 1);
-ini_set('session.cookie_secure', 0); // Cambiar a 1 si usas HTTPS
-ini_set('session.cookie_samesite', 'Strict');
-ini_set('session.cookie_lifetime', SESSION_LIFETIME);
-ini_set('session.gc_maxlifetime', SESSION_LIFETIME);
-ini_set('session.use_strict_mode', 1);
-ini_set('session.sid_length', 48);
-ini_set('session.sid_bits_per_character', 6);
+// Configuración de sesiones seguras - solo si la sesión no está activa
+if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.cookie_httponly', 1);
+    ini_set('session.use_only_cookies', 1);
+    ini_set('session.cookie_secure', 0); // Cambiar a 1 si usas HTTPS
+    ini_set('session.cookie_samesite', 'Strict');
+    ini_set('session.cookie_lifetime', SESSION_LIFETIME);
+    ini_set('session.gc_maxlifetime', SESSION_LIFETIME);
+    ini_set('session.use_strict_mode', 1);
+    ini_set('session.sid_length', 48);
+    ini_set('session.sid_bits_per_character', 6);
+}
 
 // HEADERS COMENTADOS - Se configuran en cada script individual para evitar conflictos
 // header_remove('X-Powered-By');
