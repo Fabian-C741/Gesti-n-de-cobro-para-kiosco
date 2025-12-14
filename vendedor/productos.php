@@ -631,18 +631,19 @@ function eliminarProducto(id, nombre) {
     new bootstrap.Modal(document.getElementById('modalEliminar')).show();
 }
 
-// Variables para evitar validaciones duplicadas
-let ultimoCodigoValidado = '';
-let validando = false;
-
 // Validar código de barras contra la base de datos
 async function validarCodigo(inputId, nombreId, productoId) {
     const input = document.getElementById(inputId);
+    const nombreInput = document.getElementById(nombreId);
     const codigo = input.value.trim();
     
-    if (validando || codigo === ultimoCodigoValidado) return;
+    if (!codigo) {
+        nombreInput.disabled = false;
+        return;
+    }
     
-    validando = true;
+    // Bloquear nombre mientras valida
+    nombreInput.disabled = true;
     
     try {
         const response = await fetch(`../api/buscar_producto.php?codigo_barras=${encodeURIComponent(codigo)}`);
@@ -651,25 +652,24 @@ async function validarCodigo(inputId, nombreId, productoId) {
         if (data.success && data.producto) {
             // Si estamos editando el mismo producto, permitir
             if (productoId && data.producto.id == productoId) {
-                ultimoCodigoValidado = codigo;
-                validando = false;
-                document.getElementById(nombreId).focus();
+                nombreInput.disabled = false;
+                nombreInput.focus();
                 return;
             }
             // EXISTE - alertar y limpiar
             alert('El producto "' + data.producto.nombre + '" ya existe con ese código.');
             input.value = '';
-            ultimoCodigoValidado = '';
             input.focus();
+            // Mantener nombre bloqueado
         } else {
-            // NO EXISTE - avanzar
-            ultimoCodigoValidado = codigo;
-            document.getElementById(nombreId).focus();
+            // NO EXISTE - desbloquear y avanzar
+            nombreInput.disabled = false;
+            nombreInput.focus();
         }
     } catch (error) {
         console.error('Error:', error);
+        nombreInput.disabled = false;
     }
-    validando = false;
 }
 
 // Limpiar formulario de crear producto
@@ -678,7 +678,7 @@ function limpiarFormularioCrear() {
     form.reset();
     document.getElementById('preview_crear').style.display = 'none';
     document.getElementById('crear_activo').checked = true;
-    ultimoCodigoValidado = '';
+    document.getElementById('nombre_crear').disabled = false;
 }
 
 // Inicialización
@@ -697,18 +697,20 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Evento en código de barras crear
     const codigoBarrasCrear = document.getElementById('codigo_barras_crear');
+    const nombreCrear = document.getElementById('nombre_crear');
     if (codigoBarrasCrear) {
         codigoBarrasCrear.addEventListener('input', function() {
-            const codigo = this.value.trim();
-            if (codigo.length >= 8 && codigo !== ultimoCodigoValidado) {
+            if (this.value.trim().length > 0) {
+                nombreCrear.disabled = true;
+            }
+            if (this.value.trim().length >= 8) {
                 validarCodigo('codigo_barras_crear', 'nombre_crear', null);
             }
         });
         codigoBarrasCrear.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
+            if (e.key === 'Enter' || e.key === 'Tab') {
                 e.preventDefault();
-                const codigo = this.value.trim();
-                if (codigo.length >= 1) {
+                if (this.value.trim().length >= 1) {
                     validarCodigo('codigo_barras_crear', 'nombre_crear', null);
                 }
             }
@@ -717,20 +719,22 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Evento en código de barras editar
     const codigoBarrasEditar = document.getElementById('edit_codigo_barras');
+    const nombreEditar = document.getElementById('edit_nombre');
     if (codigoBarrasEditar) {
         codigoBarrasEditar.addEventListener('input', function() {
-            const codigo = this.value.trim();
             const editId = document.getElementById('edit_id').value;
-            if (codigo.length >= 8 && codigo !== ultimoCodigoValidado) {
+            if (this.value.trim().length > 0) {
+                nombreEditar.disabled = true;
+            }
+            if (this.value.trim().length >= 8) {
                 validarCodigo('edit_codigo_barras', 'edit_nombre', editId);
             }
         });
         codigoBarrasEditar.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
+            if (e.key === 'Enter' || e.key === 'Tab') {
                 e.preventDefault();
-                const codigo = this.value.trim();
                 const editId = document.getElementById('edit_id').value;
-                if (codigo.length >= 1) {
+                if (this.value.trim().length >= 1) {
                     validarCodigo('edit_codigo_barras', 'edit_nombre', editId);
                 }
             }
@@ -739,10 +743,10 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Limpiar al cerrar modales
     document.getElementById('modalCrear').addEventListener('hidden.bs.modal', function() {
-        ultimoCodigoValidado = '';
+        document.getElementById('nombre_crear').disabled = false;
     });
     document.getElementById('modalEditar').addEventListener('hidden.bs.modal', function() {
-        ultimoCodigoValidado = '';
+        document.getElementById('edit_nombre').disabled = false;
     });
 });
 </script>

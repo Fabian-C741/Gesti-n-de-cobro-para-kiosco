@@ -537,19 +537,23 @@ function limpiarFormulario() {
     document.getElementById('productoAction').value = 'crear';
     document.getElementById('productoId').value = '';
     document.getElementById('productoCodigoBarras').value = '';
+    document.getElementById('productoNombre').disabled = false;
 }
 
-// Variable para evitar validaciones duplicadas
-let ultimoCodigoValidado = '';
-let validando = false;
-
 // Validar código de barras contra la base de datos
-async function validarCodigo(codigo) {
-    if (validando || codigo === ultimoCodigoValidado) return;
-    
-    validando = true;
+async function validarCodigo() {
     const input = document.getElementById('productoCodigoBarras');
+    const nombreInput = document.getElementById('productoNombre');
+    const codigo = input.value.trim();
     const productoId = document.getElementById('productoId').value;
+    
+    if (!codigo) {
+        nombreInput.disabled = false;
+        return;
+    }
+    
+    // Bloquear nombre mientras valida
+    nombreInput.disabled = true;
     
     try {
         const response = await fetch(`../api/buscar_producto.php?codigo_barras=${encodeURIComponent(codigo)}`);
@@ -558,30 +562,28 @@ async function validarCodigo(codigo) {
         if (data.success && data.producto) {
             // Si estamos editando el mismo producto, permitir
             if (productoId && data.producto.id == productoId) {
-                ultimoCodigoValidado = codigo;
-                validando = false;
-                document.getElementById('productoNombre').focus();
+                nombreInput.disabled = false;
+                nombreInput.focus();
                 return;
             }
             // EXISTE - alertar y limpiar
             alert('El producto "' + data.producto.nombre + '" ya existe con ese código.');
             input.value = '';
-            ultimoCodigoValidado = '';
             input.focus();
+            // Mantener nombre bloqueado
         } else {
-            // NO EXISTE - avanzar
-            ultimoCodigoValidado = codigo;
-            document.getElementById('productoNombre').focus();
+            // NO EXISTE - desbloquear y avanzar
+            nombreInput.disabled = false;
+            nombreInput.focus();
         }
     } catch (error) {
         console.error('Error:', error);
+        nombreInput.disabled = false;
     }
-    validando = false;
 }
 
 document.getElementById('modalProducto').addEventListener('hidden.bs.modal', function () {
     limpiarFormulario();
-    ultimoCodigoValidado = '';
 });
 
 // Inicialización
@@ -599,23 +601,26 @@ document.addEventListener('DOMContentLoaded', function() {
     <?php endif; ?>
     
     const codigoBarrasInput = document.getElementById('productoCodigoBarras');
+    const nombreInput = document.getElementById('productoNombre');
+    
     if (codigoBarrasInput) {
-        // Detectar cambios mientras se escribe/escanea
+        // Bloquear nombre al inicio si hay código
         codigoBarrasInput.addEventListener('input', function() {
-            const codigo = this.value.trim();
-            // Validar cuando tenga 8+ caracteres (código de barras típico)
-            if (codigo.length >= 8 && codigo !== ultimoCodigoValidado) {
-                validarCodigo(codigo);
+            if (this.value.trim().length > 0) {
+                nombreInput.disabled = true;
+            }
+            // Validar cuando tenga 8+ caracteres
+            if (this.value.trim().length >= 8) {
+                validarCodigo();
             }
         });
         
-        // También validar con Enter
+        // Validar con Enter o Tab
         codigoBarrasInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
+            if (e.key === 'Enter' || e.key === 'Tab') {
                 e.preventDefault();
-                const codigo = this.value.trim();
-                if (codigo.length >= 1) {
-                    validarCodigo(codigo);
+                if (this.value.trim().length >= 1) {
+                    validarCodigo();
                 }
             }
         });
