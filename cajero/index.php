@@ -5,8 +5,12 @@ require_once '../includes/Database.php';
 session_start();
 require_once '../includes/functions.php';
 require_once '../includes/session_validator.php';
+require_once '../includes/tenant_check.php';
 
 require_login();
+
+// Verificar si el tenant está activo (sistema SaaS)
+verificarTenantActivo();
 
 // Verificar que sea cajero
 if ($_SESSION['user_rol'] !== 'cajero') {

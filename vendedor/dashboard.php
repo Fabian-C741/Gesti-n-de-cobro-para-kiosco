@@ -3,8 +3,12 @@ require_once '../config/config.php';
 require_once '../includes/Database.php';
 session_start();
 require_once '../includes/functions.php';
+require_once '../includes/tenant_check.php';
 
 require_login();
+
+// Verificar si el tenant está activo (sistema SaaS)
+verificarTenantActivo();
 
 // Asegurar que no sea admin
 if (is_admin()) {

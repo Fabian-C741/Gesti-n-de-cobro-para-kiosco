@@ -5,6 +5,105 @@ session_start();
 require_once 'includes/functions.php';
 require_once 'includes/security.php';
 
+// ============================================
+// VERIFICAR ESTADO DEL TENANT (Sistema SaaS)
+// ============================================
+// Conectar a la BD maestra para verificar si este sistema está suspendido
+$tenant_suspendido = false;
+$mensaje_suspension = '';
+
+try {
+    $DB_HOST_MASTER = Env::get('DB_HOST_MASTER', '');
+    $DB_NAME_MASTER = Env::get('DB_NAME_MASTER', '');
+    $DB_USER_MASTER = Env::get('DB_USER_MASTER', '');
+    $DB_PASS_MASTER = Env::get('DB_PASS_MASTER', '');
+    
+    // Solo verificar si hay configuración de BD maestra
+    if (!empty($DB_NAME_MASTER) && !empty($DB_USER_MASTER)) {
+        $conn_master = new PDO(
+            "mysql:host={$DB_HOST_MASTER};dbname={$DB_NAME_MASTER};charset=utf8mb4",
+            $DB_USER_MASTER,
+            $DB_PASS_MASTER,
+            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+        );
+        
+        // Buscar este sistema en la tabla de tenants por nombre de BD
+        $bd_actual = DB_NAME;
+        $stmt = $conn_master->prepare("SELECT estado, nombre FROM tenants WHERE bd_nombre = ? LIMIT 1");
+        $stmt->execute([$bd_actual]);
+        $tenant = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($tenant) {
+            if ($tenant['estado'] === 'suspendido') {
+                $tenant_suspendido = true;
+                $mensaje_suspension = 'Este sistema está <strong>SUSPENDIDO</strong>. Contacte al administrador para más información.';
+            } elseif ($tenant['estado'] === 'vencido') {
+                $tenant_suspendido = true;
+                $mensaje_suspension = 'La suscripción de este sistema ha <strong>VENCIDO</strong>. Contacte al administrador para renovar.';
+            } elseif ($tenant['estado'] === 'cancelado') {
+                $tenant_suspendido = true;
+                $mensaje_suspension = 'Este sistema ha sido <strong>CANCELADO</strong>. Contacte al administrador.';
+            }
+        }
+    }
+} catch (PDOException $e) {
+    // Si falla la conexión a la BD maestra, continuar normalmente
+    // (puede ser un sistema standalone sin multi-tenant)
+}
+
+// Si el tenant está suspendido, mostrar página de error
+if ($tenant_suspendido) {
+    ?>
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Sistema Suspendido</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+        <style>
+            body {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .error-card {
+                background: white;
+                border-radius: 20px;
+                padding: 40px;
+                text-align: center;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                max-width: 500px;
+            }
+            .error-icon {
+                font-size: 80px;
+                color: #dc3545;
+                margin-bottom: 20px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="error-card">
+            <div class="error-icon">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+            </div>
+            <h2 class="mb-3">Acceso No Disponible</h2>
+            <p class="text-muted mb-4"><?php echo $mensaje_suspension; ?></p>
+            <hr>
+            <p class="small text-muted mb-0">
+                <i class="bi bi-envelope me-1"></i> Si cree que esto es un error, contacte al soporte técnico.
+            </p>
+        </div>
+    </body>
+    </html>
+    <?php
+    exit;
+}
+// ============================================
+
 // Cargar personalización
 $db = Database::getInstance()->getConnection();
 $stmt = $db->query("SELECT clave, valor FROM personalizacion");

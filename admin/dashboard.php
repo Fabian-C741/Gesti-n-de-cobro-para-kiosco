@@ -3,8 +3,12 @@ require_once '../config/config.php';
 require_once '../includes/Database.php';
 session_start();
 require_once '../includes/functions.php';
+require_once '../includes/tenant_check.php';
 
 require_admin();
+
+// Verificar si el tenant está activo (sistema SaaS)
+verificarTenantActivo();
 
 $db = Database::getInstance()->getConnection();
 
