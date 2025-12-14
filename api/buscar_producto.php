@@ -1,8 +1,5 @@
 <?php
 session_start();
-require_once '../config/config.php';
-require_once '../includes/Database.php';
-require_once '../includes/functions.php';
 
 header('Content-Type: application/json');
 
@@ -12,15 +9,22 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-$db = Database::getInstance()->getConnection();
+// Conectar a la BD del tenant (no a la principal)
+$host = $_SESSION['tenant_bd_host'] ?? 'localhost';
+$name = $_SESSION['tenant_bd'] ?? 'u464516792_produccion';
+$user = $_SESSION['tenant_bd_user'] ?? 'root';
+$pass = $_SESSION['tenant_bd_pass'] ?? '';
 
-// DEBUG: Ver qué base de datos estamos usando
-$db_name = $db->query("SELECT DATABASE()")->fetchColumn();
-$usuario_id = $_SESSION['user_id'];
-$pv_id = $_SESSION['punto_venta_id'] ?? null;
+try {
+    $db = new PDO("mysql:host=$host;dbname=$name;charset=utf8mb4", $user, $pass);
+    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException $e) {
+    echo json_encode(['success' => false, 'message' => 'Error de conexión']);
+    exit;
+}
 
 // Obtener parámetro de búsqueda
-$codigo_barras = $_GET['codigo_barras'] ?? '';
+$codigo_barras = trim($_GET['codigo_barras'] ?? '');
 
 if (empty($codigo_barras)) {
     echo json_encode(['success' => false, 'message' => 'Código de barras requerido']);
@@ -28,10 +32,7 @@ if (empty($codigo_barras)) {
 }
 
 try {
-    // Verificar si la columna punto_venta_id existe
-    $has_pv_column = column_exists($db, 'productos', 'punto_venta_id');
-    
-    // Buscar producto por código de barras (buscar TODOS para validar duplicados)
+    // Buscar producto por código de barras
     $stmt = $db->prepare("
         SELECT p.*, c.nombre as categoria_nombre
         FROM productos p
@@ -51,13 +52,12 @@ try {
         echo json_encode([
             'success' => false,
             'message' => 'Producto no encontrado',
-            'debug_db' => $db_name,
-            'debug_codigo' => $codigo_barras
+            'debug_db' => $name
         ]);
     }
 } catch (PDOException $e) {
     echo json_encode([
         'success' => false,
-        'message' => 'Error en la búsqueda: ' . $e->getMessage()
+        'message' => 'Error: ' . $e->getMessage()
     ]);
 }
