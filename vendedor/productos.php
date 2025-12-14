@@ -57,7 +57,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $producto_existente = $stmt_check->fetch();
                     
                     if ($producto_existente) {
-                        $error = "Ya existe un producto con este código de barras: \"{$producto_existente['nombre']}\"";
+                        $error = "El código de barras ya existe. Producto: \"{$producto_existente['nombre']}\"";
+                        $reabrir_modal = true; // Reabrir para que pueda cargar otro producto
                     }
                 }
                 
@@ -670,11 +671,15 @@ function limpiarFormularioCrear() {
 
 // Verificar si hay que reabrir el modal después de crear producto
 document.addEventListener('DOMContentLoaded', function() {
-    <?php if ($reabrir_modal && !empty($success)): ?>
+    <?php if ($reabrir_modal): ?>
     // Limpiar formulario y reabrir modal para escaneo continuo
     limpiarFormularioCrear();
     const modalCrear = new bootstrap.Modal(document.getElementById('modalCrear'));
     modalCrear.show();
+    <?php if (!empty($error)): ?>
+    // Mostrar alerta de error
+    alert('<?php echo addslashes($error); ?>');
+    <?php endif; ?>
     // Enfocar en código de barras
     setTimeout(function() {
         document.getElementById('codigo_barras_crear').focus();
