@@ -130,12 +130,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             // Validar código de barras duplicado en edición (solo si se proporciona uno)
             if (!empty($codigo_barras)) {
-                $stmt_check = $db->prepare("SELECT id, nombre FROM productos WHERE codigo_barras = ? AND activo = 1 AND id != ?");
+                $stmt_check = $db->prepare("SELECT id, nombre FROM productos WHERE codigo_barras = ? AND id != ?");
                 $stmt_check->execute([$codigo_barras, $id]);
                 $producto_existente = $stmt_check->fetch();
                 
                 if ($producto_existente) {
-                    $error = "Ya existe un producto con este código de barras: \"{$producto_existente['nombre']}\"";
+                    $error = "El código de barras ya existe. Producto: \"{$producto_existente['nombre']}\"";
+                    $reabrir_modal = true;
                 }
             }
             
