@@ -50,15 +50,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Buscar tenant por dominio
             $stmt = $conn_master->prepare("
                 SELECT * FROM tenants 
-                WHERE dominio = ? AND activo = 1
+                WHERE dominio = ?
             ");
             $stmt->execute([$dominio]);
             $tenant = $stmt->fetch();
             
             if (!$tenant) {
-                $error = 'Dominio no encontrado o cuenta inactiva';
+                $error = 'Dominio no encontrado';
+            } elseif (!$tenant['activo']) {
+                $error = 'Esta cuenta ha sido desactivada permanentemente. Contacte al administrador';
+            } elseif ($tenant['estado'] === 'suspendido') {
+                $error = 'Su cuenta está suspendida. Contacte al administrador para más información';
+            } elseif ($tenant['estado'] === 'vencido') {
+                $error = 'Su suscripción ha vencido. Contacte al administrador para renovar';
+            } elseif ($tenant['estado'] === 'cancelado') {
+                $error = 'Esta cuenta ha sido cancelada. Contacte al administrador';
             } elseif ($tenant['estado'] !== 'activo') {
-                $error = 'Su cuenta está ' . $tenant['estado'] . '. Contacte al administrador';
+                $error = 'Su cuenta no está activa. Contacte al administrador';
             } else {
                 // Conectar a la BD del tenant
                 try {
