@@ -21,9 +21,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $admin_telefono = trim($_POST['admin_telefono'] ?? '');
         $admin_password = $_POST['admin_password'] ?? '';
         $bd_existente = trim($_POST['bd_existente'] ?? '');
+        $bd_usuario = trim($_POST['bd_usuario'] ?? '');
+        $bd_password = $_POST['bd_password'] ?? '';
         
-        if (empty($nombre) || empty($dominio) || empty($admin_nombre) || empty($admin_email) || empty($admin_password) || empty($bd_existente)) {
-            throw new Exception('Por favor completa todos los campos obligatorios (incluye el nombre de la BD)');
+        if (empty($nombre) || empty($dominio) || empty($admin_nombre) || empty($admin_email) || empty($admin_password) || empty($bd_existente) || empty($bd_usuario)) {
+            throw new Exception('Por favor completa todos los campos obligatorios (incluye credenciales de BD)');
         }
         
         // Validar que el dominio no exista
@@ -64,10 +66,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             )
         ");
         
-        // Usaremos las mismas credenciales de la BD maestra por ahora
+        // Usar las credenciales ingresadas para esta BD
         $stmt->execute([
             $nombre, $razon_social, $cuit, $dominio,
-            $bd_nombre, DB_USER_MASTER, DB_PASS_MASTER,
+            $bd_nombre, $bd_usuario, $bd_password,
             $plan, $plan_info['precio'],
             $plan_info['limite_usuarios'], $plan_info['limite_productos'], $plan_info['limite_puntos_venta'],
             $email_contacto, $telefono_contacto,
@@ -362,10 +364,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <small class="text-muted">El cliente usará este código para iniciar sesión</small>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Nombre de BD en Hostinger <span class="text-danger">*</span></label>
+                                <label class="form-label">Nombre de BD <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" name="bd_existente" required 
                                        placeholder="u464516792_cliente1">
-                                <small class="text-muted">Nombre exacto de la BD que creaste en Hostinger</small>
+                                <small class="text-muted">Nombre exacto de la BD creada en Hostinger</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Usuario de BD <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="bd_usuario" required 
+                                       placeholder="u464516792_cliente1">
+                                <small class="text-muted">Usuario de la base de datos</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Contraseña de BD <span class="text-danger">*</span></label>
+                                <input type="password" class="form-control" name="bd_password" 
+                                       placeholder="••••••••">
+                                <small class="text-muted">Contraseña de la base de datos</small>
                             </div>
                         </div>
                     </div>
