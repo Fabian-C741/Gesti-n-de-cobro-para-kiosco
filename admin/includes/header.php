@@ -62,9 +62,6 @@
                 <a href="personalizacion.php" class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'personalizacion.php' ? 'active' : ''; ?>">
                     <i class="bi bi-palette"></i> Personalización
                 </a>
-                <a href="logs.php" class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'logs.php' ? 'active' : ''; ?>">
-                    <i class="bi bi-list-ul"></i> Logs de Actividad
-                </a>
             </nav>
         </div>
         <div class="sidebar-footer">

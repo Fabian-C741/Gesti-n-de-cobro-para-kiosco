@@ -1,12 +1,13 @@
 <?php
-require_once '../config/config.php';
-require_once '../includes/Database.php';
-session_start();
-require_once '../includes/functions.php';
+// Logs movido al Super Admin - redirigir
+header('Location: dashboard.php');
+exit;
 
-require_admin();
-
-$db = Database::getInstance()->getConnection();
+/*
+ * ARCHIVO DESHABILITADO
+ * Los logs ahora solo están disponibles en el panel de Super Admin
+ * para monitoreo centralizado de todos los tenants
+ */
 
 // Filtros
 $tipo = $_GET['tipo'] ?? '';
