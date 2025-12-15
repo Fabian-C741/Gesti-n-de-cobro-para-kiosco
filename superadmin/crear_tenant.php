@@ -20,9 +20,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $admin_email = trim($_POST['admin_email'] ?? '');
         $admin_telefono = trim($_POST['admin_telefono'] ?? '');
         $admin_password = $_POST['admin_password'] ?? '';
+        $bd_existente = trim($_POST['bd_existente'] ?? '');
         
-        if (empty($nombre) || empty($dominio) || empty($admin_nombre) || empty($admin_email) || empty($admin_password)) {
-            throw new Exception('Por favor completa todos los campos obligatorios');
+        if (empty($nombre) || empty($dominio) || empty($admin_nombre) || empty($admin_email) || empty($admin_password) || empty($bd_existente)) {
+            throw new Exception('Por favor completa todos los campos obligatorios (incluye el nombre de la BD)');
         }
         
         // Validar que el dominio no exista
@@ -32,8 +33,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception('El dominio ya está en uso');
         }
         
-        // Generar nombre de BD único
-        $bd_nombre = 'tenant_' . preg_replace('/[^a-z0-9]/', '_', $dominio) . '_' . substr(md5(uniqid()), 0, 6);
+        // Usar BD existente (creada manualmente en Hostinger)
+        $bd_nombre = $bd_existente;
         
         // Obtener límites según el plan
         global $planes;
@@ -75,8 +76,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         $tenant_id = $conn_master->lastInsertId();
         
-        // 2. Crear la base de datos del tenant
-        $conn_master->exec("CREATE DATABASE IF NOT EXISTS `$bd_nombre` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+        // 2. La BD ya debe existir en Hostinger (creada manualmente)
+        // Solo verificamos que podamos conectarnos
         
         // 3. Leer el schema SQL base
         $schema_file = __DIR__ . '/../database.sql';
@@ -345,19 +346,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <div class="card stat-card mb-4">
                     <div class="card-header bg-white py-3">
-                        <h5 class="mb-0 fw-bold"><i class="bi bi-globe me-2"></i>Configuración de Dominio</h5>
+                        <h5 class="mb-0 fw-bold"><i class="bi bi-globe me-2"></i>Configuración de Dominio y Base de Datos</h5>
                     </div>
                     <div class="card-body">
+                        <div class="alert alert-info mb-3">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Paso previo:</strong> Antes de crear el tenant, debes crear la base de datos en Hostinger → Bases de datos → MySQL
+                        </div>
                         <div class="row g-3">
-                            <div class="col-12">
-                                <label class="form-label">Dominio/Subdominio <span class="text-danger">*</span></label>
-                                <div class="input-group">
-                                    <input type="text" class="form-control" name="dominio" required 
-                                           placeholder="cliente1" pattern="[a-z0-9-]+" 
-                                           title="Solo letras minúsculas, números y guiones">
-                                    <span class="input-group-text">.tudominio.com</span>
-                                </div>
-                                <small class="text-muted">Solo letras minúsculas, números y guiones. Será la URL de acceso del cliente.</small>
+                            <div class="col-md-6">
+                                <label class="form-label">Código de acceso <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="dominio" required 
+                                       placeholder="kiosco-juan" pattern="[a-z0-9-]+" 
+                                       title="Solo letras minúsculas, números y guiones">
+                                <small class="text-muted">El cliente usará este código para iniciar sesión</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Nombre de BD en Hostinger <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="bd_existente" required 
+                                       placeholder="u464516792_cliente1">
+                                <small class="text-muted">Nombre exacto de la BD que creaste en Hostinger</small>
                             </div>
                         </div>
                     </div>
