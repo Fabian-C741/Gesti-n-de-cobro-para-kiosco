@@ -32,6 +32,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $plan = $_POST['plan'];
         $precio_mensual = floatval($_POST['precio_mensual']);
         $fecha_expiracion = $_POST['fecha_expiracion'];
+        $bd_nombre = trim($_POST['bd_nombre']);
+        $bd_usuario = trim($_POST['bd_usuario']);
+        $bd_password = $_POST['bd_password'];
         
         // Actualizar tenant
         $stmt = $conn_master->prepare("
@@ -47,7 +50,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 admin_telefono = ?,
                 plan = ?,
                 precio_mensual = ?,
-                fecha_expiracion = ?
+                fecha_expiracion = ?,
+                bd_nombre = ?,
+                bd_usuario = ?,
+                bd_password = ?
             WHERE id = ?
         ");
         
@@ -64,6 +70,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $plan,
             $precio_mensual,
             $fecha_expiracion,
+            $bd_nombre,
+            $bd_usuario,
+            $bd_password,
             $id
         ]);
         
@@ -256,6 +265,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <div class="col-md-4">
                                     <label class="form-label">Fecha Vencimiento</label>
                                     <input type="date" class="form-control" name="fecha_expiracion" value="<?= $tenant['fecha_expiracion'] ?>">
+                                </div>
+                            </div>
+
+                            <h5 class="fw-bold mb-3 mt-4">Base de Datos</h5>
+                            <div class="alert alert-warning mb-3">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                <strong>Importante:</strong> La BD debe existir en Hostinger antes de vincularla.
+                            </div>
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-4">
+                                    <label class="form-label">Nombre de BD *</label>
+                                    <input type="text" class="form-control" name="bd_nombre" value="<?= htmlspecialchars($tenant['bd_nombre']) ?>" required>
+                                    <small class="text-muted">Ej: u464516792_cliente1</small>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Usuario BD *</label>
+                                    <input type="text" class="form-control" name="bd_usuario" value="<?= htmlspecialchars($tenant['bd_usuario']) ?>" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Contraseña BD</label>
+                                    <input type="password" class="form-control" name="bd_password" value="<?= htmlspecialchars($tenant['bd_password']) ?>" placeholder="••••••••">
                                 </div>
                             </div>
 
