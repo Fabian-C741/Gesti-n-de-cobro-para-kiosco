@@ -35,10 +35,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $fecha_backup = date('Y-m-d_H-i-s');
             $archivo_backup = $backupDir . "/tenant_{$id}_{$tenant['dominio']}_{$fecha_backup}.txt";
             
-            // Obtener pagos del cliente
-            $stmt_pagos = $conn_master->prepare("SELECT * FROM tenant_pagos WHERE tenant_id = ? ORDER BY fecha_pago DESC");
-            $stmt_pagos->execute([$id]);
-            $pagos = $stmt_pagos->fetchAll();
+            // Obtener pagos del cliente (si la tabla existe)
+            $pagos = [];
+            try {
+                $stmt_pagos = $conn_master->prepare("SELECT * FROM tenant_pagos WHERE tenant_id = ? ORDER BY id DESC");
+                $stmt_pagos->execute([$id]);
+                $pagos = $stmt_pagos->fetchAll();
+            } catch (PDOException $e) {
+                // La tabla no existe o hay error, continuar sin pagos
+                $pagos = [];
+            }
             
             // Crear contenido del backup
             $backup_content = "=================================================\n";
