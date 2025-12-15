@@ -89,11 +89,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         $schema_sql = file_get_contents($schema_file);
         
-        // 4. Conectar a la BD del tenant y ejecutar el schema
+        // 4. Conectar a la BD del tenant usando las credenciales ingresadas
         $conn_tenant = new PDO(
             "mysql:host=localhost;dbname=$bd_nombre;charset=utf8mb4",
-            DB_USER_MASTER,
-            DB_PASS_MASTER,
+            $bd_usuario,
+            $bd_password,
             [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
         );
         
