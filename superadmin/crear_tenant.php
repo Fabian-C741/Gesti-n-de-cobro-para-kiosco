@@ -123,6 +123,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         
+        // Verificar que las tablas se crearon correctamente
+        $tablas_creadas = $conn_tenant->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
+        if (!in_array('usuarios', $tablas_creadas)) {
+            throw new Exception('Error: No se pudo crear la tabla usuarios en la BD del tenant');
+        }
+        
         // 5. Crear usuario administrador en la BD del tenant (si se solicitó)
         if ($crear_admin) {
             $admin_password_hash = password_hash($admin_password, PASSWORD_DEFAULT);

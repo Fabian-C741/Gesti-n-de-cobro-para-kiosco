@@ -48,11 +48,15 @@ function registrarLog($tenant_id, $accion, $descripcion = '', $conn = null) {
     $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
     $usuario = $_SESSION['super_admin_nombre'] ?? 'Sistema';
     
-    $stmt = $db->prepare("
-        INSERT INTO tenant_logs (tenant_id, accion, descripcion, usuario, ip_address)
-        VALUES (?, ?, ?, ?, ?)
-    ");
-    $stmt->execute([$tenant_id, $accion, $descripcion, $usuario, $ip]);
+    try {
+        $stmt = $db->prepare("
+            INSERT INTO tenant_logs (tenant_id, accion, descripcion, usuario, ip)
+            VALUES (?, ?, ?, ?, ?)
+        ");
+        $stmt->execute([$tenant_id, $accion, $descripcion, $usuario, $ip]);
+    } catch (PDOException $e) {
+        // Silently fail - no bloquear por error de log
+    }
 }
 
 // Función para conectar a la base de datos de un tenant específico
