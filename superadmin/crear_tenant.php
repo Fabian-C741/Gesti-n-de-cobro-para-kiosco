@@ -24,8 +24,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $bd_usuario = trim($_POST['bd_usuario'] ?? '');
         $bd_password = $_POST['bd_password'] ?? '';
         
-        if (empty($nombre) || empty($dominio) || empty($admin_nombre) || empty($admin_email) || empty($admin_password) || empty($bd_existente) || empty($bd_usuario)) {
-            throw new Exception('Por favor completa todos los campos obligatorios (incluye credenciales de BD)');
+        $crear_admin = isset($_POST['crear_admin']) ? true : false;
+        
+        if (empty($nombre) || empty($dominio) || empty($bd_existente) || empty($bd_usuario)) {
+            throw new Exception('Por favor completa los campos obligatorios: Nombre, Dominio y credenciales de BD');
+        }
+        
+        if ($crear_admin && (empty($admin_nombre) || empty($admin_password))) {
+            throw new Exception('Si deseas crear un usuario admin, debes completar nombre y contraseña');
         }
         
         // Validar que el dominio no exista
@@ -109,14 +115,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         
-        // 5. Crear usuario administrador en la BD del tenant
-        $admin_password_hash = password_hash($admin_password, PASSWORD_DEFAULT);
-        
-        $stmt = $conn_tenant->prepare("
-            INSERT INTO usuarios (nombre, email, password, rol, activo)
-            VALUES (?, ?, ?, 'admin', 1)
-        ");
-        $stmt->execute([$admin_nombre, $admin_email, $admin_password_hash]);
+        // 5. Crear usuario administrador en la BD del tenant (si se solicitó)
+        if ($crear_admin) {
+            $admin_password_hash = password_hash($admin_password, PASSWORD_DEFAULT);
+            $admin_email_final = !empty($admin_email) ? $admin_email : 'admin@' . $dominio . '.local';
+            
+            $stmt = $conn_tenant->prepare("
+                INSERT INTO usuarios (nombre, email, password, rol, activo)
+                VALUES (?, ?, ?, 'admin', 1)
+            ");
+            $stmt->execute([$admin_nombre, $admin_email_final, $admin_password_hash]);
+        }
         
         // 6. Crear sucursal y punto de venta por defecto
         $stmt = $conn_tenant->prepare("
@@ -418,26 +427,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <h5 class="mb-0 fw-bold"><i class="bi bi-person-badge me-2"></i>Usuario Administrador</h5>
                     </div>
                     <div class="card-body">
-                        <p class="text-muted mb-3">
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" name="crear_admin" id="crearAdmin" checked onchange="toggleAdminFields()">
+                            <label class="form-check-label" for="crearAdmin">
+                                <strong>Crear usuario administrador automáticamente</strong>
+                            </label>
+                        </div>
+                        <p class="text-muted mb-3" id="adminInfo">
                             <i class="bi bi-info-circle me-1"></i>
-                            Se creará automáticamente un usuario administrador para el cliente
+                            Se creará un usuario administrador. Puedes crear más usuarios después desde "Gestionar Usuarios".
                         </p>
-                        <div class="row g-3">
+                        <div class="row g-3" id="adminFields">
                             <div class="col-md-6">
                                 <label class="form-label">Nombre Completo <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" name="admin_nombre" required placeholder="Juan Pérez">
+                                <input type="text" class="form-control" name="admin_nombre" id="adminNombre" placeholder="Juan Pérez">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Email <span class="text-danger">*</span></label>
-                                <input type="email" class="form-control" name="admin_email" required placeholder="admin@cliente.com">
+                                <label class="form-label">Email <small class="text-muted">(opcional)</small></label>
+                                <input type="email" class="form-control" name="admin_email" placeholder="admin@cliente.com">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Teléfono</label>
+                                <label class="form-label">Teléfono <small class="text-muted">(opcional)</small></label>
                                 <input type="text" class="form-control" name="admin_telefono" placeholder="+54 11 1234-5678">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Contraseña <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" name="admin_password" required 
+                                <input type="text" class="form-control" name="admin_password" id="adminPassword"
                                        value="<?= bin2hex(random_bytes(4)) ?>" placeholder="Mínimo 8 caracteres">
                                 <small class="text-muted">Se genera automáticamente. Puedes cambiarla si lo deseas.</small>
                             </div>
@@ -459,6 +474,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Toggle campos de admin
+        function toggleAdminFields() {
+            const checkbox = document.getElementById('crearAdmin');
+            const fields = document.getElementById('adminFields');
+            const info = document.getElementById('adminInfo');
+            const nombreInput = document.getElementById('adminNombre');
+            const passwordInput = document.getElementById('adminPassword');
+            
+            if (checkbox.checked) {
+                fields.style.display = 'flex';
+                info.innerHTML = '<i class="bi bi-info-circle me-1"></i>Se creará un usuario administrador. Puedes crear más usuarios después desde "Gestionar Usuarios".';
+            } else {
+                fields.style.display = 'none';
+                info.innerHTML = '<i class="bi bi-info-circle me-1"></i>No se creará usuario. Podrás crear usuarios después desde "Gestionar Usuarios".';
+            }
+        }
+        
         // Selección visual de planes
         document.querySelectorAll('.plan-card').forEach(card => {
             card.addEventListener('click', function() {
