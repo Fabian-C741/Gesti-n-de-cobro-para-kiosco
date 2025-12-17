@@ -103,6 +103,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
         );
         
+        // Eliminar tablas existentes para empezar limpio
+        $conn_tenant->exec("SET FOREIGN_KEY_CHECKS = 0");
+        $tablas = $conn_tenant->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
+        foreach ($tablas as $tabla) {
+            $conn_tenant->exec("DROP TABLE IF EXISTS `$tabla`");
+        }
+        $conn_tenant->exec("SET FOREIGN_KEY_CHECKS = 1");
+        
         // Dividir y ejecutar cada sentencia SQL
         $statements = array_filter(
             array_map('trim', explode(';', $schema_sql)),
