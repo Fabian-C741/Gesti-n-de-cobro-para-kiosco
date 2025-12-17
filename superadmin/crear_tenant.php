@@ -118,13 +118,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // 5. Crear usuario administrador en la BD del tenant (si se solicitó)
         if ($crear_admin) {
             $admin_password_hash = password_hash($admin_password, PASSWORD_DEFAULT);
-            $admin_email_final = !empty($admin_email) ? $admin_email : 'admin@' . $dominio . '.local';
+            $admin_username = trim($_POST['admin_username'] ?? '');
+            $admin_email_final = !empty($admin_email) ? $admin_email : null;
+            
+            if (empty($admin_username)) {
+                throw new Exception('El nombre de usuario es obligatorio para el admin');
+            }
             
             $stmt = $conn_tenant->prepare("
-                INSERT INTO usuarios (nombre, email, password, rol, activo)
-                VALUES (?, ?, ?, 'admin', 1)
+                INSERT INTO usuarios (nombre, username, email, password, rol, activo)
+                VALUES (?, ?, ?, ?, 'admin', 1)
             ");
-            $stmt->execute([$admin_nombre, $admin_email_final, $admin_password_hash]);
+            $stmt->execute([$admin_nombre, $admin_username, $admin_email_final, $admin_password_hash]);
         }
         
         // 6. Crear sucursal y punto de venta por defecto
@@ -443,12 +448,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <input type="text" class="form-control" name="admin_nombre" id="adminNombre" placeholder="Juan Pérez">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Email <small class="text-muted">(opcional)</small></label>
-                                <input type="email" class="form-control" name="admin_email" placeholder="admin@cliente.com">
+                                <label class="form-label">Nombre de Usuario <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="admin_username" id="adminUsername" placeholder="admin" pattern="[a-zA-Z0-9_]+" title="Solo letras, números y guiones bajos">
+                                <small class="text-muted">Para iniciar sesión (sin espacios)</small>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Teléfono <small class="text-muted">(opcional)</small></label>
-                                <input type="text" class="form-control" name="admin_telefono" placeholder="+54 11 1234-5678">
+                                <label class="form-label">Email <small class="text-muted">(opcional)</small></label>
+                                <input type="email" class="form-control" name="admin_email" placeholder="admin@cliente.com">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Contraseña <span class="text-danger">*</span></label>

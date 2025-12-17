@@ -5,7 +5,8 @@
 CREATE TABLE usuarios (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nombre VARCHAR(100) NOT NULL,
-    email VARCHAR(100) NOT NULL UNIQUE,
+    username VARCHAR(50) UNIQUE,
+    email VARCHAR(100) UNIQUE,
     password VARCHAR(255) NOT NULL,
     rol ENUM('admin', 'vendedor', 'cajero') DEFAULT 'vendedor',
     token_acceso VARCHAR(64) UNIQUE,
@@ -14,6 +15,7 @@ CREATE TABLE usuarios (
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     fecha_modificacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_email (email),
+    INDEX idx_username (username),
     INDEX idx_token (token_acceso)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
