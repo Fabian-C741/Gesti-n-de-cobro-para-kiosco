@@ -134,7 +134,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             
             $stmt = $conn_tenant->prepare("
-                INSERT INTO usuarios (nombre, username, email, password, rol, activo)
+                INSERT INTO usuarios (nombre, username, email, password, user_rol, activo)
                 VALUES (?, ?, ?, ?, 'admin', 1)
             ");
             $stmt->execute([$admin_nombre, $admin_username, $admin_email_final, $admin_password_hash]);
