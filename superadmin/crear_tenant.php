@@ -87,8 +87,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // 2. La BD ya debe existir en Hostinger (creada manualmente)
         // Solo verificamos que podamos conectarnos
         
-        // 3. Leer el schema SQL base
-        $schema_file = __DIR__ . '/../database.sql';
+        // 3. Leer el schema SQL base (simplificado para tenants)
+        $schema_file = __DIR__ . '/../schema_tenant.sql';
         if (!file_exists($schema_file)) {
             throw new Exception('Archivo de schema no encontrado');
         }
@@ -111,15 +111,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $conn_tenant->exec("SET FOREIGN_KEY_CHECKS = 1");
         
-        // Dividir y ejecutar cada sentencia SQL
-        $statements = array_filter(
-            array_map('trim', explode(';', $schema_sql)),
-            function($stmt) { return !empty($stmt) && substr($stmt, 0, 2) !== '--'; }
-        );
-        
-        foreach ($statements as $statement) {
-            if (!empty($statement)) {
-                $conn_tenant->exec($statement);
+        // Ejecutar cada línea del schema (una sentencia por línea)
+        $lines = array_filter(array_map('trim', explode("\n", $schema_sql)));
+        foreach ($lines as $line) {
+            if (!empty($line)) {
+                $conn_tenant->exec($line);
             }
         }
         
