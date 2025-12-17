@@ -113,11 +113,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $admin_password_hash = password_hash($admin_password, PASSWORD_DEFAULT);
         
         $stmt = $conn_tenant->prepare("
-            INSERT INTO usuarios (nombre, email, telefono, username, password, user_rol, activo)
-            VALUES (?, ?, ?, ?, ?, 'admin', 1)
+            INSERT INTO usuarios (nombre, email, password, rol, activo)
+            VALUES (?, ?, ?, 'admin', 1)
         ");
-        $admin_username = strtolower(preg_replace('/[^a-z0-9]/', '', $admin_nombre));
-        $stmt->execute([$admin_nombre, $admin_email, $admin_telefono, $admin_username, $admin_password_hash]);
+        $stmt->execute([$admin_nombre, $admin_email, $admin_password_hash]);
         
         // 6. Crear sucursal y punto de venta por defecto
         $stmt = $conn_tenant->prepare("
