@@ -76,10 +76,24 @@ include 'includes/header.php';
         </div>
     </div>
     <?php elseif (empty($productos)): ?>
-    <div class="alert alert-warning">
+    <div class="alert alert-warning" id="alertaNoEncontrado">
         <i class="bi bi-exclamation-triangle me-2"></i>
         No se encontraron productos con "<strong><?php echo htmlspecialchars($buscar); ?></strong>"
     </div>
+    <script>
+        (function() {
+            var input = document.querySelector('input[name="buscar"]');
+            if (input) {
+                input.value = '';
+                input.focus();
+            }
+            history.replaceState({}, '', 'consultar_precios.php');
+            setTimeout(function() {
+                var alerta = document.getElementById('alertaNoEncontrado');
+                if (alerta) alerta.style.display = 'none';
+            }, 2000);
+        })();
+    </script>
     <?php else: ?>
     <div class="card">
         <div class="card-header">
