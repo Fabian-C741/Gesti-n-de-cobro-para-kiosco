@@ -96,28 +96,24 @@ include 'includes/header.php';
                 </div>
                 <?php elseif (empty($productos)): ?>
                 <div class="col-12">
-                    <div class="alert alert-warning">
+                    <div class="alert alert-warning" id="alertaNoEncontrado">
                         <i class="bi bi-exclamation-triangle me-2"></i>
-                        No se encontraron productos con "<strong><?php echo htmlspecialchars($buscar); ?></strong>". Intenta con otra búsqueda.
+                        No se encontraron productos con "<strong><?php echo htmlspecialchars($buscar); ?></strong>". Escaneando siguiente...
                     </div>
                 </div>
                 <script>
-                    // Limpiar campo de búsqueda cuando no se encuentra producto
-                    document.addEventListener('DOMContentLoaded', function() {
+                    (function() {
+                        var input = document.getElementById('buscarProducto');
+                        if (input) {
+                            input.value = '';
+                            input.focus();
+                        }
+                        history.replaceState({}, '', 'index.php');
                         setTimeout(function() {
-                            const searchInput = document.getElementById('buscarProducto');
-                            if (searchInput) {
-                                searchInput.value = '';
-                                searchInput.focus();
-                            }
-                            // Limpiar URL
-                            const url = new URL(window.location);
-                            if (url.searchParams.has('buscar')) {
-                                url.searchParams.delete('buscar');
-                                window.history.replaceState({}, '', url);
-                            }
-                        }, 1500); // Esperar 1.5 segundos para que el usuario vea el mensaje
-                    });
+                            var alerta = document.getElementById('alertaNoEncontrado');
+                            if (alerta) alerta.style.display = 'none';
+                        }, 2000);
+                    })();
                 </script>
                 <?php else: ?>
                 <?php foreach ($productos as $producto): ?>
