@@ -101,6 +101,24 @@ include 'includes/header.php';
                         No se encontraron productos con "<strong><?php echo htmlspecialchars($buscar); ?></strong>". Intenta con otra búsqueda.
                     </div>
                 </div>
+                <script>
+                    // Limpiar campo de búsqueda cuando no se encuentra producto
+                    document.addEventListener('DOMContentLoaded', function() {
+                        setTimeout(function() {
+                            const searchInput = document.getElementById('buscarProducto');
+                            if (searchInput) {
+                                searchInput.value = '';
+                                searchInput.focus();
+                            }
+                            // Limpiar URL
+                            const url = new URL(window.location);
+                            if (url.searchParams.has('buscar')) {
+                                url.searchParams.delete('buscar');
+                                window.history.replaceState({}, '', url);
+                            }
+                        }, 1500); // Esperar 1.5 segundos para que el usuario vea el mensaje
+                    });
+                </script>
                 <?php else: ?>
                 <?php foreach ($productos as $producto): ?>
                 <div class="col-md-6 col-lg-4">
