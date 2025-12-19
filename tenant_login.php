@@ -32,6 +32,21 @@ session_start();
 $error = '';
 $mensaje = '';
 
+// Detectar subdominio automáticamente
+$subdominio_detectado = '';
+$host = $_SERVER['HTTP_HOST'] ?? '';
+$dominio_principal = 'kcrsf.com'; // Cambiar por tu dominio principal
+
+// Si es un subdominio (ej: kiosco-juan.kcrsf.com)
+if (strpos($host, $dominio_principal) !== false && $host !== $dominio_principal && $host !== 'www.' . $dominio_principal) {
+    // Extraer subdominio (todo lo que está antes del dominio principal)
+    $subdominio_detectado = str_replace('.' . $dominio_principal, '', $host);
+    // Quitar también gestion-de-ventaspos si existe
+    if (strpos($subdominio_detectado, 'gestion-de-ventaspos') !== false) {
+        $subdominio_detectado = '';
+    }
+}
+
 // Logout
 if (isset($_GET['logout'])) {
     session_destroy();
@@ -212,15 +227,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php endif; ?>
             
             <form method="POST" action="">
-                <div class="mb-3">
-                    <label for="dominio" class="form-label">Dominio de su Negocio</label>
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="bi bi-building"></i></span>
-                        <input type="text" class="form-control" id="dominio" name="dominio" 
-                               placeholder="minegocio" required autofocus>
+                <?php if ($subdominio_detectado): ?>
+                    <!-- Subdominio detectado automáticamente -->
+                    <input type="hidden" name="dominio" value="<?= htmlspecialchars($subdominio_detectado) ?>">
+                    <div class="alert alert-info mb-3">
+                        <i class="bi bi-building me-2"></i>
+                        <strong>Negocio:</strong> <?= htmlspecialchars($subdominio_detectado) ?>
                     </div>
-                    <small class="text-muted">Ej: si su negocio es "Mi Kiosco", ingrese: mikiosco</small>
-                </div>
+                <?php else: ?>
+                    <div class="mb-3">
+                        <label for="dominio" class="form-label">Código de su Negocio</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-building"></i></span>
+                            <input type="text" class="form-control" id="dominio" name="dominio" 
+                                   placeholder="minegocio" required autofocus>
+                        </div>
+                        <small class="text-muted">Código proporcionado por el administrador</small>
+                    </div>
+                <?php endif; ?>
                 
                 <div class="mb-3">
                     <label for="usuario" class="form-label">Usuario o Email</label>
