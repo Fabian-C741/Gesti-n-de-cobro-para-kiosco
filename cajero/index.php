@@ -679,29 +679,6 @@ function cerrarModalTicket() {
 // ===== ESCÁNER DE CÓDIGO DE BARRAS CON CÁMARA =====
 let html5QrCode = null;
 let scannerActivo = false;
-let libreriaEscanerCargada = false;
-
-function cargarLibreriaEscaner() {
-    return new Promise((resolve, reject) => {
-        if (typeof Html5Qrcode !== 'undefined') { resolve(); return; }
-        if (libreriaEscanerCargada) {
-            setTimeout(() => { if (typeof Html5Qrcode !== 'undefined') resolve(); else reject('No se pudo cargar'); }, 1000);
-            return;
-        }
-        libreriaEscanerCargada = true;
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js';
-        script.onload = () => resolve();
-        script.onerror = () => {
-            const script2 = document.createElement('script');
-            script2.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
-            script2.onload = () => resolve();
-            script2.onerror = () => reject('No se pudo cargar la librería');
-            document.head.appendChild(script2);
-        };
-        document.head.appendChild(script);
-    });
-}
 
 function abrirEscaner() {
     if (!document.getElementById('modalEscaner')) {
@@ -715,10 +692,7 @@ function abrirEscaner() {
                     </div>
                     <div class="modal-body p-0">
                         <div id="reader" style="width: 100%; min-height: 300px; background: #000;"></div>
-                        <div id="scannerStatus" class="p-3 text-center">
-                            <div class="spinner-border text-primary" role="status"></div>
-                            <p class="mt-2 mb-0">Cargando escáner...</p>
-                        </div>
+                        <div id="scannerStatus" class="p-3 text-center"></div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" onclick="detenerEscaner()">Cancelar</button>
@@ -729,47 +703,59 @@ function abrirEscaner() {
         document.body.insertAdjacentHTML('beforeend', modalHtml);
     }
     
-    document.getElementById('scannerStatus').innerHTML = '<div class="spinner-border text-primary" role="status"></div><p class="mt-2 mb-0">Cargando escáner...</p>';
+    document.getElementById('scannerStatus').innerHTML = '<div class="spinner-border text-primary" role="status"></div><p class="mt-2 mb-0">Cargando...</p>';
     const modal = new bootstrap.Modal(document.getElementById('modalEscaner'));
     modal.show();
     
-    document.getElementById('modalEscaner').addEventListener('shown.bs.modal', function() {
-        cargarLibreriaEscaner().then(() => { setTimeout(iniciarEscaner, 300); }).catch(err => {
-            document.getElementById('scannerStatus').innerHTML = '<div class="alert alert-danger mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Error al cargar librería. Verifica tu conexión.</div>';
-        });
-    }, { once: true });
+    // Cargar librería si no existe
+    if (typeof Html5Qrcode === 'undefined') {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js';
+        script.onload = () => setTimeout(iniciarEscaner, 500);
+        script.onerror = () => {
+            document.getElementById('scannerStatus').innerHTML = '<div class="alert alert-danger mb-0">No se pudo cargar la librería del escáner</div>';
+        };
+        document.head.appendChild(script);
+    } else {
+        setTimeout(iniciarEscaner, 300);
+    }
 }
 
 function iniciarEscaner() {
     if (scannerActivo) return;
     const statusDiv = document.getElementById('scannerStatus');
-    statusDiv.innerHTML = '<div class="spinner-border text-primary" role="status"></div><p class="mt-2 mb-0">Solicitando acceso a cámara...</p>';
+    
+    if (typeof Html5Qrcode === 'undefined') {
+        statusDiv.innerHTML = '<div class="alert alert-danger mb-0">Error: Librería no disponible</div>';
+        return;
+    }
+    
+    statusDiv.innerHTML = '<div class="spinner-border text-primary" role="status"></div><p class="mt-2 mb-0">Iniciando cámara...</p>';
     
     try {
         html5QrCode = new Html5Qrcode("reader");
         scannerActivo = true;
         
-        html5QrCode.start(
-            { facingMode: "environment" },
-            { fps: 10, qrbox: { width: 250, height: 100 }, aspectRatio: 1.0 },
+        const config = { fps: 10, qrbox: { width: 250, height: 100 } };
+        
+        html5QrCode.start({ facingMode: "environment" }, config,
             (decodedText) => {
                 document.getElementById('buscarProducto').value = decodedText;
                 detenerEscaner();
                 buscarProductos(decodedText);
                 if ('vibrate' in navigator) navigator.vibrate(200);
             },
-            () => {}
+            (errorMessage) => { /* Ignorar errores de escaneo */ }
         ).then(() => {
-            statusDiv.innerHTML = '<small class="text-success"><i class="bi bi-check-circle me-1"></i>Cámara activa - Apunta al código</small>';
+            statusDiv.innerHTML = '<small class="text-success"><i class="bi bi-check-circle me-1"></i>Apunta al código de barras</small>';
         }).catch(err => {
+            console.error('Error cámara:', err);
             scannerActivo = false;
-            if (err.name === 'NotAllowedError' || err.message.includes('Permission')) {
-                statusDiv.innerHTML = '<div class="alert alert-warning mb-0"><i class="bi bi-camera-video me-2"></i>Toca "Permitir" cuando el navegador solicite acceso a la cámara</div>';
-            } else {
-                statusDiv.innerHTML = '<div class="alert alert-danger mb-0">Error: ' + (err.message || err) + '</div>';
-            }
+            statusDiv.innerHTML = '<div class="alert alert-warning mb-0"><i class="bi bi-info-circle me-2"></i>' + 
+                'No se pudo acceder a la cámara.<br><small>Verifica que hayas dado permiso de cámara al sitio.</small></div>';
         });
     } catch(e) {
+        console.error('Error:', e);
         statusDiv.innerHTML = '<div class="alert alert-danger mb-0">Error: ' + e.message + '</div>';
         scannerActivo = false;
     }
