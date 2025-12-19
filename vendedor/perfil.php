@@ -170,7 +170,7 @@ include 'includes/header.php';
                             <label class="form-label text-muted">Rol</label>
                             <p class="form-control-plaintext">
                                 <span class="badge bg-<?php echo $usuario['user_rol'] === 'admin' ? 'danger' : ($usuario['user_rol'] === 'cajero' ? 'info' : 'success'); ?>">
-                                    <?php echo $usuario['user_rol'] === 'admin' ? 'Administrador' : ($usuario['user_rol'] === 'cajero' ? 'Cajero' : 'Vendedor'); ?>
+                                    <?php echo $usuario['user_rol'] === 'admin' ? 'Administrador' : ($usuario['user_rol'] === 'cajero' ? 'Cajero' : 'Colaborador'); ?>
                                 </span>
                             </p>
                         </div>

@@ -71,7 +71,7 @@
                         <?php 
                         $rol = $_SESSION['user_rol'] ?? 'vendedor';
                         $badgeColor = $rol === 'admin' ? 'danger' : ($rol === 'cajero' ? 'info' : 'success');
-                        $rolTexto = $rol === 'admin' ? 'Administrador' : ($rol === 'cajero' ? 'Cajero' : 'Vendedor');
+                        $rolTexto = $rol === 'admin' ? 'Administrador' : ($rol === 'cajero' ? 'Cajero' : 'Colaborador');
                         ?>
                         <span class="badge bg-<?php echo $badgeColor; ?> ms-2"><?php echo $rolTexto; ?></span>
                     </span>

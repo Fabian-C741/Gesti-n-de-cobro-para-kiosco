@@ -179,7 +179,7 @@ $usuarios = $stmt->fetchAll();
                 <h2 class="fw-bold">
                     <i class="bi bi-people me-2"></i>Usuarios de <?= htmlspecialchars($tenant['nombre']) ?>
                 </h2>
-                <p class="text-muted">Gestiona los usuarios (Admin, Vendedores, Cajeros) de este cliente</p>
+                <p class="text-muted">Gestiona los usuarios (Admin, Colaboradores, Cajeros) de este cliente</p>
             </div>
         </div>
 
@@ -239,7 +239,7 @@ $usuarios = $stmt->fetchAll();
                                                 'cajero' => 'info'
                                             ];
                                             $color = $badge_colors[$usuario['rol']] ?? 'secondary';
-                                            $rol_texto = ['admin' => 'Administrador', 'vendedor' => 'Vendedor', 'cajero' => 'Cajero'][$usuario['rol']] ?? $usuario['rol'];
+                                            $rol_texto = ['admin' => 'Administrador', 'vendedor' => 'Colaborador', 'cajero' => 'Cajero'][$usuario['rol']] ?? $usuario['rol'];
                                             ?>
                                             <span class="badge bg-<?= $color ?>"><?= $rol_texto ?></span>
                                         </td>
@@ -309,7 +309,7 @@ $usuarios = $stmt->fetchAll();
                             <label class="form-label">Rol *</label>
                             <select class="form-select" name="rol" required>
                                 <option value="admin">Administrador</option>
-                                <option value="vendedor" selected>Vendedor</option>
+                                <option value="vendedor" selected>Colaborador</option>
                                 <option value="cajero">Cajero</option>
                             </select>
                             <small class="text-muted">

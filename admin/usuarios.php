@@ -294,12 +294,12 @@ include 'includes/header.php';
                         <select name="rol" id="crear_rol" class="form-select" required>
                             <option value="">-- Seleccionar Rol --</option>
                             <option value="admin">Administrador</option>
-                            <option value="vendedor">Vendedor</option>
+                            <option value="vendedor">Colaborador</option>
                             <option value="cajero">Cajero</option>
                         </select>
                         <small class="text-muted">
                             <strong>Admin:</strong> Acceso total al sistema<br>
-                            <strong>Vendedor:</strong> Gestión completa de productos y ventas<br>
+                            <strong>Colaborador:</strong> Gestión completa de productos y ventas<br>
                             <strong>Cajero:</strong> Solo realizar ventas
                         </small>
                     </div>
