@@ -624,6 +624,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // ===== ESCÁNER DE CÓDIGO DE BARRAS CON CÁMARA PARA PRODUCTOS =====
 let html5QrCode = null;
+let scannerActivo = false;
 
 function abrirEscanerProducto() {
     // Crear modal si no existe
@@ -637,7 +638,7 @@ function abrirEscanerProducto() {
                         <button type="button" class="btn-close btn-close-white" onclick="cerrarEscanerProd()"></button>
                     </div>
                     <div class="modal-body p-0">
-                        <div id="readerProd" style="width: 100%;"></div>
+                        <div id="readerProd" style="width: 100%; min-height: 300px;"></div>
                         <div class="p-3 text-center">
                             <small class="text-muted">Apunta la cámara al código de barras</small>
                         </div>
@@ -654,63 +655,71 @@ function abrirEscanerProducto() {
     const modal = new bootstrap.Modal(document.getElementById('modalEscanerProd'));
     modal.show();
     
-    // Iniciar escáner después de que se muestre el modal
-    document.getElementById('modalEscanerProd').addEventListener('shown.bs.modal', iniciarEscanerProd, { once: true });
+    // Iniciar escáner después de que se muestre el modal con un pequeño delay
+    document.getElementById('modalEscanerProd').addEventListener('shown.bs.modal', function() {
+        setTimeout(iniciarEscanerProd, 300);
+    }, { once: true });
 }
 
 function iniciarEscanerProd() {
-    html5QrCode = new Html5Qrcode("readerProd");
+    if (scannerActivo) return;
     
-    html5QrCode.start(
-        { facingMode: "environment" }, // Cámara trasera
-        {
-            fps: 10,
-            qrbox: { width: 250, height: 100 },
-            formatsToSupport: [
-                Html5QrcodeSupportedFormats.EAN_13,
-                Html5QrcodeSupportedFormats.EAN_8,
-                Html5QrcodeSupportedFormats.CODE_128,
-                Html5QrcodeSupportedFormats.CODE_39,
-                Html5QrcodeSupportedFormats.UPC_A,
-                Html5QrcodeSupportedFormats.UPC_E
-            ]
-        },
-        (decodedText) => {
-            // Éxito: código escaneado
-            document.getElementById('productoCodigoBarras').value = decodedText;
-            
-            cerrarEscanerProd();
-            
-            // Validar código escaneado
-            validarCodigo();
-            
-            // Feedback
-            if ('vibrate' in navigator) navigator.vibrate(200);
-        },
-        (errorMessage) => {
-            // Ignorar errores de escaneo continuo
-        }
-    ).catch((err) => {
-        console.error('Error al iniciar cámara:', err);
-        alert('No se pudo acceder a la cámara. Verifica los permisos.');
-    });
+    try {
+        html5QrCode = new Html5Qrcode("readerProd");
+        scannerActivo = true;
+        
+        html5QrCode.start(
+            { facingMode: "environment" },
+            {
+                fps: 10,
+                qrbox: { width: 250, height: 100 },
+                aspectRatio: 1.0,
+                formatsToSupport: [
+                    Html5QrcodeSupportedFormats.EAN_13,
+                    Html5QrcodeSupportedFormats.EAN_8,
+                    Html5QrcodeSupportedFormats.CODE_128,
+                    Html5QrcodeSupportedFormats.CODE_39,
+                    Html5QrcodeSupportedFormats.UPC_A,
+                    Html5QrcodeSupportedFormats.UPC_E
+                ]
+            },
+            (decodedText) => {
+                document.getElementById('productoCodigoBarras').value = decodedText;
+                cerrarEscanerProd();
+                validarCodigo();
+                if ('vibrate' in navigator) navigator.vibrate(200);
+            },
+            (errorMessage) => {}
+        ).catch((err) => {
+            console.error('Error al iniciar cámara:', err);
+            scannerActivo = false;
+            alert('No se pudo acceder a la cámara.\n\nVerifica:\n1. Que estés usando HTTPS\n2. Que hayas dado permisos de cámara\n3. Que la cámara no esté en uso por otra app');
+        });
+    } catch(e) {
+        console.error('Error:', e);
+        scannerActivo = false;
+    }
 }
 
 function cerrarEscanerProd() {
-    if (html5QrCode) {
+    if (html5QrCode && scannerActivo) {
         html5QrCode.stop().then(() => {
             html5QrCode.clear();
-        }).catch(err => console.log('Error al detener:', err));
+            scannerActivo = false;
+        }).catch(err => {
+            console.log('Error al detener:', err);
+            scannerActivo = false;
+        });
     }
     const modal = bootstrap.Modal.getInstance(document.getElementById('modalEscanerProd'));
     if (modal) modal.hide();
 }
 
-// Limpiar al cerrar modal del escáner
 document.addEventListener('hidden.bs.modal', function(e) {
     if (e.target.id === 'modalEscanerProd') {
-        if (html5QrCode) {
+        if (html5QrCode && scannerActivo) {
             html5QrCode.stop().catch(err => {});
+            scannerActivo = false;
         }
     }
 });
