@@ -522,25 +522,59 @@ function solicitarPermisoCamara() {
     const statusDiv = document.getElementById('scannerStatus');
     statusDiv.innerHTML = '<div class="spinner-border text-primary" role="status"></div><p class="mt-2 mb-0">Solicitando permiso de cámara...</p>';
     
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        statusDiv.innerHTML = `
+            <div class="alert alert-danger mb-0">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                Tu navegador no soporta acceso a la cámara.<br>
+                <small>Usa Chrome, Firefox o Safari actualizados.</small>
+            </div>`;
+        return;
+    }
+    
     navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
         .then(stream => {
-            stream.getTracks().forEach(track => track.stop());
+            console.log('Permiso de cámara concedido');
+            window.cameraStream = stream;
             cargarLibreriaYEscanear();
         })
         .catch(err => {
+            console.error('Error de cámara:', err.name, err.message);
+            let mensaje = '';
+            let mostrarBoton = true;
+            
+            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                mensaje = 'Permiso de cámara denegado';
+            } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                mensaje = 'No se encontró ninguna cámara';
+                mostrarBoton = false;
+            } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+                mensaje = 'La cámara está siendo usada por otra aplicación';
+            } else if (err.name === 'OverconstrainedError') {
+                mensaje = 'No se encontró cámara compatible';
+            } else {
+                mensaje = 'Error: ' + (err.message || err.name);
+            }
+            
             statusDiv.innerHTML = `
                 <div class="alert alert-warning mb-3">
                     <i class="bi bi-camera-video-off me-2"></i>
-                    <strong>Se necesita acceso a la cámara</strong>
+                    <strong>${mensaje}</strong>
                 </div>
-                <p class="mb-3">Para escanear códigos de barras, permite el acceso a la cámara.</p>
-                <button class="btn btn-primary btn-lg" onclick="solicitarPermisoCamara()">
-                    <i class="bi bi-camera me-2"></i>Permitir Cámara
+                ${mostrarBoton ? `
+                <p class="mb-3">Toca el botón y luego <strong>PERMITE</strong> cuando el navegador pregunte.</p>
+                <button class="btn btn-success btn-lg" onclick="solicitarPermisoCamara()">
+                    <i class="bi bi-camera me-2"></i>Intentar de Nuevo
                 </button>
-                <p class="mt-3 text-muted small">
-                    Si no aparece el diálogo, ve a<br>
-                    <strong>Configuración del navegador > Permisos > Cámara</strong>
-                </p>`;
+                <hr>
+                <p class="text-muted small mb-2">
+                    <strong>Si ya denegaste el permiso:</strong>
+                </p>
+                <ol class="text-start text-muted small">
+                    <li>Toca el ícono 🔒 junto a la URL</li>
+                    <li>Busca "Cámara" y cámbialo a "Permitir"</li>
+                    <li>Recarga la página</li>
+                </ol>` : ''}`;
         });
 }
 
@@ -563,6 +597,11 @@ function iniciarEscaner() {
     if (scannerActivo) return;
     const statusDiv = document.getElementById('scannerStatus');
     
+    if (window.cameraStream) {
+        window.cameraStream.getTracks().forEach(track => track.stop());
+        window.cameraStream = null;
+    }
+    
     if (typeof Html5Qrcode === 'undefined') {
         statusDiv.innerHTML = '<div class="alert alert-danger mb-0">Error: Librería no disponible</div>';
         return;
@@ -583,14 +622,16 @@ function iniciarEscaner() {
         ).then(() => {
             statusDiv.innerHTML = '<small class="text-success"><i class="bi bi-check-circle me-1"></i>Apunta al código de barras</small>';
         }).catch(err => {
+            console.error('Error al iniciar escáner:', err);
             scannerActivo = false;
             statusDiv.innerHTML = `
-                <div class="alert alert-warning mb-3">Error al iniciar cámara</div>
+                <div class="alert alert-warning mb-3">Error al iniciar cámara<br><small>${err}</small></div>
                 <button class="btn btn-primary" onclick="solicitarPermisoCamara()">
                     <i class="bi bi-arrow-clockwise me-2"></i>Reintentar
                 </button>`;
         });
     } catch(e) {
+        console.error('Excepción en escáner:', e);
         statusDiv.innerHTML = '<div class="alert alert-danger mb-0">Error: ' + e.message + '</div>';
         scannerActivo = false;
     }
