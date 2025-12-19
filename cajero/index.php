@@ -73,12 +73,17 @@ include 'includes/header.php';
             <div class="card mb-3">
                 <div class="card-body">
                     <div class="position-relative">
-                        <input type="text" id="buscarProducto" class="form-control form-control-lg" 
-                               placeholder="🔍 Escribe 3 letras o escanea código de barras (búsqueda automática)..." 
-                               value="<?php echo htmlspecialchars($buscar); ?>"
-                               autofocus>
+                        <div class="input-group">
+                            <input type="text" id="buscarProducto" class="form-control form-control-lg" 
+                                   placeholder="🔍 Escribe 3 letras o escanea código de barras..." 
+                                   value="<?php echo htmlspecialchars($buscar); ?>"
+                                   autofocus>
+                            <button class="btn btn-primary btn-lg" type="button" onclick="abrirEscaner()" title="Escanear con cámara">
+                                <i class="bi bi-camera"></i>
+                            </button>
+                        </div>
                         <small class="text-muted d-block mt-1">
-                            <i class="bi bi-info-circle"></i> La búsqueda se activa automáticamente al escribir 3 o más caracteres
+                            <i class="bi bi-info-circle"></i> Escribe 3+ caracteres o usa <strong>📷 la cámara</strong> para escanear
                         </small>
                     </div>
                 </div>
@@ -670,6 +675,101 @@ function cerrarModalTicket() {
         modalElement.remove();
     }
 }
+
+// ===== ESCÁNER DE CÓDIGO DE BARRAS CON CÁMARA =====
+let html5QrCode = null;
+
+function abrirEscaner() {
+    // Crear modal si no existe
+    if (!document.getElementById('modalEscaner')) {
+        const modalHtml = `
+        <div class="modal fade" id="modalEscaner" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title"><i class="bi bi-camera me-2"></i>Escanear Código de Barras</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" onclick="detenerEscaner()"></button>
+                    </div>
+                    <div class="modal-body p-0">
+                        <div id="reader" style="width: 100%;"></div>
+                        <div class="p-3 text-center">
+                            <small class="text-muted">Apunta la cámara al código de barras</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="detenerEscaner()">Cancelar</button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalEscaner'));
+    modal.show();
+    
+    // Iniciar escáner después de que se muestre el modal
+    document.getElementById('modalEscaner').addEventListener('shown.bs.modal', iniciarEscaner, { once: true });
+}
+
+function iniciarEscaner() {
+    html5QrCode = new Html5Qrcode("reader");
+    
+    html5QrCode.start(
+        { facingMode: "environment" }, // Cámara trasera
+        {
+            fps: 10,
+            qrbox: { width: 250, height: 100 },
+            formatsToSupport: [
+                Html5QrcodeSupportedFormats.EAN_13,
+                Html5QrcodeSupportedFormats.EAN_8,
+                Html5QrcodeSupportedFormats.CODE_128,
+                Html5QrcodeSupportedFormats.CODE_39,
+                Html5QrcodeSupportedFormats.UPC_A,
+                Html5QrcodeSupportedFormats.UPC_E
+            ]
+        },
+        (decodedText) => {
+            // Éxito: código escaneado
+            document.getElementById('buscarProducto').value = decodedText;
+            detenerEscaner();
+            
+            // Cerrar modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalEscaner'));
+            modal.hide();
+            
+            // Disparar búsqueda
+            buscarProductos(decodedText);
+            
+            // Feedback
+            if ('vibrate' in navigator) navigator.vibrate(200);
+        },
+        (errorMessage) => {
+            // Ignorar errores de escaneo continuo
+        }
+    ).catch((err) => {
+        console.error('Error al iniciar cámara:', err);
+        alert('No se pudo acceder a la cámara. Verifica los permisos.');
+    });
+}
+
+function detenerEscaner() {
+    if (html5QrCode) {
+        html5QrCode.stop().then(() => {
+            html5QrCode.clear();
+        }).catch(err => console.log('Error al detener:', err));
+    }
+}
+
+// Limpiar al cerrar modal
+document.addEventListener('hidden.bs.modal', function(e) {
+    if (e.target.id === 'modalEscaner') {
+        detenerEscaner();
+    }
+});
 </script>
+
+<!-- Librería Html5-QRCode para escanear códigos de barras -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
 <?php include 'includes/footer.php'; ?>
