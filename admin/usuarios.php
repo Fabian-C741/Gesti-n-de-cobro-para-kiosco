@@ -23,8 +23,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $username = sanitize_input($_POST['username'] ?? '');
             $password = $_POST['password'] ?? '';
             $rol = trim($_POST['rol'] ?? 'vendedor');
-            $punto_venta_id = intval($_POST['punto_venta_id'] ?? 0);
-            $punto_venta_id = $punto_venta_id > 0 ? $punto_venta_id : null;
+            // Asignar automáticamente el punto de venta del admin que crea el usuario
+            $punto_venta_id = $_SESSION['punto_venta_id'] ?? null;
             
             if (empty($nombre) || empty($email) || empty($username) || empty($password)) {
                 $error = 'Todos los campos son obligatorios';
@@ -73,8 +73,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $username = sanitize_input($_POST['username'] ?? '');
             $password = $_POST['password'] ?? '';
             $rol = trim($_POST['rol'] ?? 'vendedor');
-            $punto_venta_id = intval($_POST['punto_venta_id'] ?? 0);
-            $punto_venta_id = $punto_venta_id > 0 ? $punto_venta_id : null;
+            // Mantener el punto de venta del admin (no se puede cambiar desde aquí)
+            $punto_venta_id = $_SESSION['punto_venta_id'] ?? null;
             $activo = isset($_POST['activo']) ? 1 : 0;
             
             if (empty($nombre) || empty($email) || empty($username)) {
@@ -304,17 +304,6 @@ include 'includes/header.php';
                         </small>
                     </div>
                     
-                    <div class="mb-3">
-                        <label class="form-label">Punto de Venta</label>
-                        <select name="punto_venta_id" class="form-select">
-                            <option value="">-- Sin asignar --</option>
-                            <?php foreach ($puntos_venta as $pv): ?>
-                                <option value="<?php echo $pv['id']; ?>">
-                                    <?php echo htmlspecialchars($pv['nombre']); ?> (<?php echo htmlspecialchars($pv['codigo']); ?>)
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -367,18 +356,6 @@ include 'includes/header.php';
                             <option value="vendedor">Vendedor</option>
                             <option value="cajero">Cajero</option>
                             <option value="admin">Administrador</option>
-                        </select>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Punto de Venta</label>
-                        <select name="punto_venta_id" id="edit_punto_venta_id" class="form-select">
-                            <option value="">-- Sin asignar --</option>
-                            <?php foreach ($puntos_venta as $pv): ?>
-                                <option value="<?php echo $pv['id']; ?>">
-                                    <?php echo htmlspecialchars($pv['nombre']); ?> (<?php echo htmlspecialchars($pv['codigo']); ?>)
-                                </option>
-                            <?php endforeach; ?>
                         </select>
                     </div>
                     
@@ -470,7 +447,6 @@ function editarUsuario(usuario) {
     document.getElementById('edit_email').value = usuario.email;
     document.getElementById('edit_username').value = usuario.username || '';
     document.getElementById('edit_rol').value = usuario.rol || 'vendedor';
-    document.getElementById('edit_punto_venta_id').value = usuario.punto_venta_id || '';
     document.getElementById('edit_activo').checked = usuario.activo == 1;
     
     new bootstrap.Modal(document.getElementById('modalEditar')).show();
