@@ -258,11 +258,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <p class="text-muted mt-2 mb-0 small">
                     ¿No tienes usuario? ¿Olvidaste tu contraseña? ¡Contáctanos!
                 </p>
-                <p class="text-muted mt-2 mb-0 small">
-                    <a href="/superadmin/login.php" class="text-decoration-none text-muted">
-                        <i class="bi bi-shield-lock me-1"></i>Acceso administradores
-                    </a>
-                </p>
+
             </div>
         </div>
     </div>
