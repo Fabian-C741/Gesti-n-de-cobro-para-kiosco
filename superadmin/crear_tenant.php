@@ -180,17 +180,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Confirmar transacción
         $conn_master->commit();
         
+        // URL base del sistema
+        $url_base = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'];
+        
         $mensaje = "
             <div class='alert alert-success'>
                 <h5><i class='bi bi-check-circle-fill me-2'></i>Cliente Creado Exitosamente</h5>
                 <hr>
-                <p><strong>Detalles de acceso:</strong></p>
-                <ul>
-                    <li><strong>URL:</strong> <code>http://{$dominio}</code></li>
-                    <li><strong>Usuario:</strong> <code>{$admin_username}</code></li>
-                    <li><strong>Contraseña:</strong> <code>{$admin_password}</code></li>
-                    <li><strong>Base de Datos:</strong> <code>{$bd_nombre}</code></li>
-                </ul>
+                <p><strong>Instrucciones de acceso para el cliente:</strong></p>
+                <ol>
+                    <li>Ir a: <code><a href='{$url_base}/tenant_login.php' target='_blank'>{$url_base}/tenant_login.php</a></code></li>
+                    <li>Código de negocio: <code><strong>{$dominio}</strong></code></li>
+                    <li>Usuario: <code>{$admin_username}</code></li>
+                    <li>Contraseña: <code>{$admin_password}</code></li>
+                </ol>
                 <p class='mb-0'><small class='text-muted'>Guarda esta información. El cliente ya puede acceder a su sistema.</small></p>
                 <div class='mt-3'>
                     <a href='ver_tenant.php?id={$tenant_id}' class='btn btn-primary'>Ver Detalles del Cliente</a>
