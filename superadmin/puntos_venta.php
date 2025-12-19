@@ -55,8 +55,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmt->execute([$codigo, $nombre]);
                 }
                 
+                $punto_venta_id = $conn_tenant->lastInsertId();
+                
+                // Crear admin si se solicitó
+                $crear_admin = isset($_POST['crear_admin']);
+                if ($crear_admin) {
+                    $admin_nombre = trim($_POST['admin_nombre'] ?? '');
+                    $admin_username = trim($_POST['admin_username'] ?? '');
+                    $admin_email = trim($_POST['admin_email'] ?? '');
+                    $admin_password = $_POST['admin_password'] ?? '';
+                    
+                    if (!empty($admin_nombre) && !empty($admin_username) && !empty($admin_password)) {
+                        $admin_password_hash = password_hash($admin_password, PASSWORD_BCRYPT);
+                        $admin_email = $admin_email ?: $admin_username . '@temp.com';
+                        
+                        $stmt = $conn_tenant->prepare("
+                            INSERT INTO usuarios (nombre, email, username, password, user_rol, punto_venta_id, activo, token_usado)
+                            VALUES (?, ?, ?, ?, 'admin', ?, 1, 1)
+                        ");
+                        $stmt->execute([$admin_nombre, $admin_email, $admin_username, $admin_password_hash, $punto_venta_id]);
+                        
+                        registrarLog($_SESSION['super_admin_id'], 'crear_admin_pv', "Admin $admin_username creado para PV $codigo");
+                        $exito = "Punto de venta $codigo creado con admin $admin_username";
+                    } else {
+                        $exito = "Punto de venta $codigo creado (faltaron datos para crear admin)";
+                    }
+                } else {
+                    $exito = "Punto de venta $codigo creado exitosamente";
+                }
+                
                 registrarLog($_SESSION['super_admin_id'], 'crear_punto_venta', "Punto de venta $codigo - $nombre creado para tenant $selected_tenant_id");
-                $exito = "Punto de venta $codigo creado exitosamente";
                 $tenant_id = $selected_tenant_id;
             } catch (PDOException $e) {
                 $error = 'Error al crear punto de venta: ' . $e->getMessage();
@@ -364,6 +392,37 @@ $page_title = 'Gestión de Puntos de Venta';
                         <label class="form-label">Teléfono</label>
                         <input type="text" name="telefono" class="form-control" placeholder="+54 11 1234-5678">
                     </div>
+                    
+                    <hr>
+                    <h6 class="mb-3"><i class="bi bi-person-plus me-2"></i>Crear Admin para este Punto de Venta</h6>
+                    
+                    <div class="form-check mb-3">
+                        <input type="checkbox" name="crear_admin" id="crear_admin" class="form-check-input" onchange="toggleAdminFields()">
+                        <label class="form-check-label" for="crear_admin">Crear usuario administrador</label>
+                    </div>
+                    
+                    <div id="admin_fields" style="display: none;">
+                        <div class="mb-3">
+                            <label class="form-label">Nombre del Admin *</label>
+                            <input type="text" name="admin_nombre" id="admin_nombre" class="form-control" placeholder="Juan Pérez">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Username *</label>
+                            <input type="text" name="admin_username" id="admin_username" class="form-control" placeholder="juan_admin">
+                            <small class="text-muted">Solo letras, números y guión bajo</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="admin_email" id="admin_email" class="form-control" placeholder="juan@email.com">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Contraseña *</label>
+                            <input type="password" name="admin_password" id="admin_password" class="form-control" minlength="6">
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -443,6 +502,20 @@ function toggleEstado(id, estado) {
         document.body.appendChild(form);
         form.submit();
     }
+}
+
+function toggleAdminFields() {
+    const checkbox = document.getElementById('crear_admin');
+    const fields = document.getElementById('admin_fields');
+    fields.style.display = checkbox.checked ? 'block' : 'none';
+    
+    // Hacer campos requeridos si está marcado
+    const inputs = fields.querySelectorAll('input[id^="admin_"]');
+    inputs.forEach(input => {
+        if (input.id === 'admin_nombre' || input.id === 'admin_username' || input.id === 'admin_password') {
+            input.required = checkbox.checked;
+        }
+    });
 }
 </script>
 
