@@ -113,7 +113,7 @@ if ($tenant_id > 0) {
         
         $stmt = $conn_tenant->query("
             SELECT pv.*,
-                   (SELECT COUNT(*) FROM usuarios WHERE punto_venta = pv.codigo) as total_usuarios
+                   (SELECT COUNT(*) FROM usuarios WHERE punto_venta_id = pv.id) as total_usuarios
             FROM puntos_venta pv
             ORDER BY pv.activo DESC, pv.nombre ASC
         ");
