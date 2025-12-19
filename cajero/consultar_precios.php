@@ -284,7 +284,4 @@ document.addEventListener('hidden.bs.modal', function(e) {
 });
 </script>
 
-<!-- Librería Html5-QRCode para escanear códigos de barras -->
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-
 <?php include 'includes/footer.php'; ?>

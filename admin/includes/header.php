@@ -19,6 +19,8 @@
     <?php if (file_exists('../assets/css/custom.css')): ?>
     <link rel="stylesheet" href="../assets/css/custom.css?v=<?php echo time(); ?>">
     <?php endif; ?>
+    <!-- Librería Html5-QRCode para escanear códigos de barras con cámara -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 </head>
 <body>
     <!-- Sidebar -->
