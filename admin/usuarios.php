@@ -23,8 +23,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $username = sanitize_input($_POST['username'] ?? '');
             $password = $_POST['password'] ?? '';
             $rol = trim($_POST['rol'] ?? 'vendedor');
+            
             // Asignar automáticamente el punto de venta del admin que crea el usuario
+            // Si no está en sesión, obtenerlo de la BD
             $punto_venta_id = $_SESSION['punto_venta_id'] ?? null;
+            if (!$punto_venta_id) {
+                $stmt_pv = $db->prepare("SELECT punto_venta_id FROM usuarios WHERE id = ?");
+                $stmt_pv->execute([$_SESSION['user_id']]);
+                $admin_pv = $stmt_pv->fetch();
+                $punto_venta_id = $admin_pv['punto_venta_id'] ?? null;
+                
+                // Si aún no tiene, asignar el primer PV activo
+                if (!$punto_venta_id) {
+                    $stmt_pv = $db->query("SELECT id FROM puntos_venta WHERE activo = 1 ORDER BY id ASC LIMIT 1");
+                    $primer_pv = $stmt_pv->fetch();
+                    $punto_venta_id = $primer_pv['id'] ?? null;
+                }
+            }
             
             if (empty($nombre) || empty($email) || empty($username) || empty($password)) {
                 $error = 'Todos los campos son obligatorios';
@@ -73,8 +88,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $username = sanitize_input($_POST['username'] ?? '');
             $password = $_POST['password'] ?? '';
             $rol = trim($_POST['rol'] ?? 'vendedor');
-            // Mantener el punto de venta del admin (no se puede cambiar desde aquí)
+            
+            // Mantener el punto de venta - obtener de BD si no está en sesión
             $punto_venta_id = $_SESSION['punto_venta_id'] ?? null;
+            if (!$punto_venta_id) {
+                $stmt_pv = $db->prepare("SELECT punto_venta_id FROM usuarios WHERE id = ?");
+                $stmt_pv->execute([$_SESSION['user_id']]);
+                $admin_pv = $stmt_pv->fetch();
+                $punto_venta_id = $admin_pv['punto_venta_id'] ?? null;
+                
+                if (!$punto_venta_id) {
+                    $stmt_pv = $db->query("SELECT id FROM puntos_venta WHERE activo = 1 ORDER BY id ASC LIMIT 1");
+                    $primer_pv = $stmt_pv->fetch();
+                    $punto_venta_id = $primer_pv['id'] ?? null;
+                }
+            }
             $activo = isset($_POST['activo']) ? 1 : 0;
             
             if (empty($nombre) || empty($email) || empty($username)) {
