@@ -699,36 +699,31 @@ function abrirEscanerProducto() {
 function iniciarEscanerProd() {
     if (scannerActivo) return;
     const statusDiv = document.getElementById('scannerStatus');
-    
     statusDiv.innerHTML = '<div class="spinner-border text-primary" role="status"></div><p class="mt-2 mb-0">Solicitando acceso a cámara...</p>';
     
     try {
         html5QrCode = new Html5Qrcode("readerProd");
         scannerActivo = true;
         
-        Html5Qrcode.getCameras().then(devices => {
-            if (devices && devices.length) {
-                const cameraId = devices[devices.length - 1].id;
-                html5QrCode.start(cameraId, { fps: 10, qrbox: { width: 250, height: 100 } },
-                    (decodedText) => {
-                        document.getElementById('productoCodigoBarras').value = decodedText;
-                        cerrarEscanerProd();
-                        validarCodigo();
-                        if ('vibrate' in navigator) navigator.vibrate(200);
-                    }, () => {}
-                ).then(() => {
-                    statusDiv.innerHTML = '<small class="text-success"><i class="bi bi-check-circle me-1"></i>Cámara activa - Apunta al código</small>';
-                }).catch(err => {
-                    scannerActivo = false;
-                    statusDiv.innerHTML = '<div class="alert alert-danger mb-0">Error: ' + (err.message || 'No se pudo iniciar cámara') + '</div>';
-                });
-            } else {
-                statusDiv.innerHTML = '<div class="alert alert-warning mb-0"><i class="bi bi-camera-video-off me-2"></i>No se detectaron cámaras en este dispositivo</div>';
-                scannerActivo = false;
-            }
+        html5QrCode.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: { width: 250, height: 100 }, aspectRatio: 1.0 },
+            (decodedText) => {
+                document.getElementById('productoCodigoBarras').value = decodedText;
+                cerrarEscanerProd();
+                validarCodigo();
+                if ('vibrate' in navigator) navigator.vibrate(200);
+            },
+            () => {}
+        ).then(() => {
+            statusDiv.innerHTML = '<small class="text-success"><i class="bi bi-check-circle me-1"></i>Cámara activa - Apunta al código</small>';
         }).catch(err => {
-            statusDiv.innerHTML = '<div class="alert alert-danger mb-0"><i class="bi bi-shield-x me-2"></i>Permiso de cámara denegado. Permite el acceso en tu navegador.</div>';
             scannerActivo = false;
+            if (err.name === 'NotAllowedError' || err.message.includes('Permission')) {
+                statusDiv.innerHTML = '<div class="alert alert-warning mb-0"><i class="bi bi-camera-video me-2"></i>Toca "Permitir" cuando el navegador solicite acceso a la cámara</div>';
+            } else {
+                statusDiv.innerHTML = '<div class="alert alert-danger mb-0">Error: ' + (err.message || err) + '</div>';
+            }
         });
     } catch(e) {
         statusDiv.innerHTML = '<div class="alert alert-danger mb-0">Error: ' + e.message + '</div>';
