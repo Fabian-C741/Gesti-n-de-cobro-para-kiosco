@@ -42,11 +42,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $next_num = ($result['max_num'] ?? 0) + 1;
                 $codigo = 'PV' . str_pad($next_num, 3, '0', STR_PAD_LEFT);
                 
-                $stmt = $conn_tenant->prepare("
-                    INSERT INTO puntos_venta (codigo, nombre, direccion, telefono, activo)
-                    VALUES (?, ?, ?, ?, 1)
-                ");
-                $stmt->execute([$codigo, $nombre, $direccion, $telefono]);
+                // Verificar si existen las columnas opcionales
+                $columnas = $conn_tenant->query("SHOW COLUMNS FROM puntos_venta")->fetchAll(PDO::FETCH_COLUMN);
+                $tiene_direccion = in_array('direccion', $columnas);
+                $tiene_telefono = in_array('telefono', $columnas);
+                
+                if ($tiene_direccion && $tiene_telefono) {
+                    $stmt = $conn_tenant->prepare("INSERT INTO puntos_venta (codigo, nombre, direccion, telefono, activo) VALUES (?, ?, ?, ?, 1)");
+                    $stmt->execute([$codigo, $nombre, $direccion, $telefono]);
+                } else {
+                    $stmt = $conn_tenant->prepare("INSERT INTO puntos_venta (codigo, nombre, activo) VALUES (?, ?, 1)");
+                    $stmt->execute([$codigo, $nombre]);
+                }
                 
                 registrarLog($_SESSION['super_admin_id'], 'crear_punto_venta', "Punto de venta $codigo - $nombre creado para tenant $selected_tenant_id");
                 $exito = "Punto de venta $codigo creado exitosamente";
@@ -67,13 +74,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $conn_tenant = conectarTenant($selected_tenant_id);
                 
+                // Verificar si existen las columnas opcionales
+                $columnas = $conn_tenant->query("SHOW COLUMNS FROM puntos_venta")->fetchAll(PDO::FETCH_COLUMN);
+                $tiene_direccion = in_array('direccion', $columnas);
+                $tiene_telefono = in_array('telefono', $columnas);
+                
                 // No se modifica el código, solo los demás campos
-                $stmt = $conn_tenant->prepare("
-                    UPDATE puntos_venta 
-                    SET nombre = ?, direccion = ?, telefono = ?
-                    WHERE id = ?
-                ");
-                $stmt->execute([$nombre, $direccion, $telefono, $id]);
+                if ($tiene_direccion && $tiene_telefono) {
+                    $stmt = $conn_tenant->prepare("UPDATE puntos_venta SET nombre = ?, direccion = ?, telefono = ? WHERE id = ?");
+                    $stmt->execute([$nombre, $direccion, $telefono, $id]);
+                } else {
+                    $stmt = $conn_tenant->prepare("UPDATE puntos_venta SET nombre = ? WHERE id = ?");
+                    $stmt->execute([$nombre, $id]);
+                }
                 
                 registrarLog($_SESSION['super_admin_id'], 'editar_punto_venta', "Punto de venta ID $id editado");
                 $exito = 'Punto de venta actualizado exitosamente';
