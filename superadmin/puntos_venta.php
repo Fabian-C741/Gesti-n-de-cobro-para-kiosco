@@ -25,57 +25,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $selected_tenant_id = intval($_POST['tenant_id'] ?? 0);
     
     if ($action === 'crear') {
-        $codigo = trim($_POST['codigo'] ?? '');
         $nombre = trim($_POST['nombre'] ?? '');
         $direccion = trim($_POST['direccion'] ?? '');
         $telefono = trim($_POST['telefono'] ?? '');
         
-        if (empty($codigo) || empty($nombre) || empty($selected_tenant_id)) {
-            $error = 'Código, nombre y cliente son obligatorios';
+        if (empty($nombre) || empty($selected_tenant_id)) {
+            $error = 'Nombre y cliente son obligatorios';
         } else {
             try {
                 // Conectar a la base de datos del tenant
                 $conn_tenant = conectarTenant($selected_tenant_id);
                 
-                // Verificar si el código ya existe
-                $stmt = $conn_tenant->prepare("SELECT id FROM puntos_venta WHERE codigo = ?");
-                $stmt->execute([$codigo]);
-                if ($stmt->fetch()) {
-                    $error = 'El código ya existe';
-                } else {
-                    $stmt = $conn_tenant->prepare("
-                        INSERT INTO puntos_venta (codigo, nombre, direccion, telefono, activo)
-                        VALUES (?, ?, ?, ?, 1)
-                    ");
-                    $stmt->execute([$codigo, $nombre, $direccion, $telefono]);
-                    
-                    registrarLog($_SESSION['super_admin_id'], 'crear_punto_venta', "Punto de venta $nombre creado para tenant $selected_tenant_id");
-                    $exito = 'Punto de venta creado exitosamente';
-                    $tenant_id = $selected_tenant_id;
-                }
+                // Generar código automático (PV001, PV002, etc.)
+                $stmt = $conn_tenant->query("SELECT MAX(CAST(SUBSTRING(codigo, 3) AS UNSIGNED)) as max_num FROM puntos_venta WHERE codigo LIKE 'PV%'");
+                $result = $stmt->fetch();
+                $next_num = ($result['max_num'] ?? 0) + 1;
+                $codigo = 'PV' . str_pad($next_num, 3, '0', STR_PAD_LEFT);
+                
+                $stmt = $conn_tenant->prepare("
+                    INSERT INTO puntos_venta (codigo, nombre, direccion, telefono, activo)
+                    VALUES (?, ?, ?, ?, 1)
+                ");
+                $stmt->execute([$codigo, $nombre, $direccion, $telefono]);
+                
+                registrarLog($_SESSION['super_admin_id'], 'crear_punto_venta', "Punto de venta $codigo - $nombre creado para tenant $selected_tenant_id");
+                $exito = "Punto de venta $codigo creado exitosamente";
+                $tenant_id = $selected_tenant_id;
             } catch (PDOException $e) {
                 $error = 'Error al crear punto de venta: ' . $e->getMessage();
             }
         }
     } elseif ($action === 'editar') {
         $id = intval($_POST['id'] ?? 0);
-        $codigo = trim($_POST['codigo'] ?? '');
         $nombre = trim($_POST['nombre'] ?? '');
         $direccion = trim($_POST['direccion'] ?? '');
         $telefono = trim($_POST['telefono'] ?? '');
         
-        if (empty($codigo) || empty($nombre) || empty($selected_tenant_id)) {
-            $error = 'Código, nombre y cliente son obligatorios';
+        if (empty($nombre) || empty($selected_tenant_id)) {
+            $error = 'Nombre y cliente son obligatorios';
         } else {
             try {
                 $conn_tenant = conectarTenant($selected_tenant_id);
                 
+                // No se modifica el código, solo los demás campos
                 $stmt = $conn_tenant->prepare("
                     UPDATE puntos_venta 
-                    SET codigo = ?, nombre = ?, direccion = ?, telefono = ?
+                    SET nombre = ?, direccion = ?, telefono = ?
                     WHERE id = ?
                 ");
-                $stmt->execute([$codigo, $nombre, $direccion, $telefono, $id]);
+                $stmt->execute([$nombre, $direccion, $telefono, $id]);
                 
                 registrarLog($_SESSION['super_admin_id'], 'editar_punto_venta', "Punto de venta ID $id editado");
                 $exito = 'Punto de venta actualizado exitosamente';
@@ -334,9 +332,9 @@ $page_title = 'Gestión de Puntos de Venta';
                     <input type="hidden" name="action" value="crear">
                     <input type="hidden" name="tenant_id" value="<?= $tenant_id ?>">
                     
-                    <div class="mb-3">
-                        <label class="form-label">Código *</label>
-                        <input type="text" name="codigo" class="form-control" required placeholder="PV-001">
+                    <div class="alert alert-info mb-3">
+                        <i class="bi bi-info-circle me-2"></i>
+                        El código se generará automáticamente (PV001, PV002, etc.)
                     </div>
                     
                     <div class="mb-3">
@@ -378,8 +376,9 @@ $page_title = 'Gestión de Puntos de Venta';
                     <input type="hidden" name="id" id="edit_id">
                     
                     <div class="mb-3">
-                        <label class="form-label">Código *</label>
-                        <input type="text" name="codigo" id="edit_codigo" class="form-control" required>
+                        <label class="form-label">Código</label>
+                        <input type="text" id="edit_codigo" class="form-control bg-light" readonly>
+                        <small class="text-muted">El código no se puede modificar</small>
                     </div>
                     
                     <div class="mb-3">
