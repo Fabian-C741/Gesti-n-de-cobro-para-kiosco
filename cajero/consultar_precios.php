@@ -221,14 +221,44 @@ function abrirEscaner() {
     document.getElementById('scannerStatus').innerHTML = '<div class="spinner-border text-primary" role="status"></div><p class="mt-2 mb-0">Cargando...</p>';
     const modal = new bootstrap.Modal(document.getElementById('modalEscaner'));
     modal.show();
+    solicitarPermisoCamara();
+}
+
+function solicitarPermisoCamara() {
+    const statusDiv = document.getElementById('scannerStatus');
+    statusDiv.innerHTML = '<div class="spinner-border text-primary" role="status"></div><p class="mt-2 mb-0">Solicitando permiso de cámara...</p>';
+    
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+        .then(stream => {
+            stream.getTracks().forEach(track => track.stop());
+            cargarLibreriaYEscanear();
+        })
+        .catch(err => {
+            statusDiv.innerHTML = `
+                <div class="alert alert-warning mb-3">
+                    <i class="bi bi-camera-video-off me-2"></i>
+                    <strong>Se necesita acceso a la cámara</strong>
+                </div>
+                <p class="mb-3">Para escanear códigos de barras, permite el acceso a la cámara.</p>
+                <button class="btn btn-primary btn-lg" onclick="solicitarPermisoCamara()">
+                    <i class="bi bi-camera me-2"></i>Permitir Cámara
+                </button>
+                <p class="mt-3 text-muted small">
+                    Si no aparece el diálogo, ve a<br>
+                    <strong>Configuración del navegador > Permisos > Cámara</strong>
+                </p>`;
+        });
+}
+
+function cargarLibreriaYEscanear() {
+    const statusDiv = document.getElementById('scannerStatus');
+    statusDiv.innerHTML = '<div class="spinner-border text-primary" role="status"></div><p class="mt-2 mb-0">Iniciando escáner...</p>';
     
     if (typeof Html5Qrcode === 'undefined') {
         const script = document.createElement('script');
         script.src = 'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js';
-        script.onload = () => setTimeout(iniciarEscaner, 500);
-        script.onerror = () => {
-            document.getElementById('scannerStatus').innerHTML = '<div class="alert alert-danger mb-0">No se pudo cargar la librería</div>';
-        };
+        script.onload = () => setTimeout(iniciarEscaner, 300);
+        script.onerror = () => { statusDiv.innerHTML = '<div class="alert alert-danger mb-0">No se pudo cargar la librería</div>'; };
         document.head.appendChild(script);
     } else {
         setTimeout(iniciarEscaner, 300);
@@ -243,8 +273,6 @@ function iniciarEscaner() {
         statusDiv.innerHTML = '<div class="alert alert-danger mb-0">Error: Librería no disponible</div>';
         return;
     }
-    
-    statusDiv.innerHTML = '<div class="spinner-border text-primary" role="status"></div><p class="mt-2 mb-0">Iniciando cámara...</p>';
     
     try {
         html5QrCode = new Html5Qrcode("reader");
@@ -261,10 +289,12 @@ function iniciarEscaner() {
         ).then(() => {
             statusDiv.innerHTML = '<small class="text-success"><i class="bi bi-check-circle me-1"></i>Apunta al código de barras</small>';
         }).catch(err => {
-            console.error('Error cámara:', err);
             scannerActivo = false;
-            statusDiv.innerHTML = '<div class="alert alert-warning mb-0"><i class="bi bi-info-circle me-2"></i>' + 
-                'No se pudo acceder a la cámara.<br><small>Verifica que hayas dado permiso al sitio.</small></div>';
+            statusDiv.innerHTML = `
+                <div class="alert alert-warning mb-3">Error al iniciar cámara</div>
+                <button class="btn btn-primary" onclick="solicitarPermisoCamara()">
+                    <i class="bi bi-arrow-clockwise me-2"></i>Reintentar
+                </button>`;
         });
     } catch(e) {
         statusDiv.innerHTML = '<div class="alert alert-danger mb-0">Error: ' + e.message + '</div>';
