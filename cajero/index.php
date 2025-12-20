@@ -713,25 +713,24 @@ function solicitarPermisoCamara() {
     const statusDiv = document.getElementById('scannerStatus');
     statusDiv.innerHTML = '<div class="spinner-border text-primary" role="status"></div><p class="mt-2 mb-0">Accediendo a la cámara...</p>';
     
+    // Debug
+    statusDiv.innerHTML += '<p class="small text-muted">mediaDevices: ' + (navigator.mediaDevices ? 'OK' : 'NO') + '</p>';
+    
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        statusDiv.innerHTML = `
-            <div class="alert alert-danger mb-0">
-                <i class="bi bi-exclamation-triangle me-2"></i>
-                Tu navegador no soporta acceso a la cámara.<br>
-                <small>Usa Chrome, Firefox o Safari actualizados.</small>
-            </div>`;
+        statusDiv.innerHTML = `<div class="alert alert-danger mb-0">Tu navegador no soporta cámara</div>`;
         return;
     }
     
-    // Intentar acceder directamente a la cámara
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+    statusDiv.innerHTML += '<p class="small text-muted">Llamando getUserMedia...</p>';
+    
+    navigator.mediaDevices.getUserMedia({ video: true })
         .then(stream => {
-            console.log('Cámara accedida correctamente');
+            statusDiv.innerHTML = '<p class="text-success">¡Cámara OK! Cargando escáner...</p>';
             window.cameraStream = stream;
             cargarLibreriaYEscanear();
         })
         .catch(err => {
-            console.error('Error cámara:', err.name, err.message);
+            statusDiv.innerHTML = '<p class="text-danger">Error: ' + err.name + ' - ' + err.message + '</p>';
             mostrarErrorCamara(err);
         });
 }
