@@ -520,78 +520,30 @@ function abrirEscaner() {
 
 function solicitarPermisoCamara() {
     const statusDiv = document.getElementById('scannerStatus');
-    statusDiv.innerHTML = '<div class="spinner-border text-primary" role="status"></div><p class="mt-2 mb-0">Verificando permisos...</p>';
+    statusDiv.innerHTML = '<div class="spinner-border text-primary" role="status"></div><p class="mt-2 mb-0">Accediendo a la cámara...</p>';
     
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        statusDiv.innerHTML = `
-            <div class="alert alert-danger mb-0">
-                <i class="bi bi-exclamation-triangle me-2"></i>
-                Tu navegador no soporta acceso a la cámara.<br>
-                <small>Usa Chrome, Firefox o Safari actualizados.</small>
-            </div>`;
+        statusDiv.innerHTML = `<div class="alert alert-danger mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Tu navegador no soporta acceso a la cámara.</div>`;
         return;
     }
     
-    if (navigator.permissions && navigator.permissions.query) {
-        navigator.permissions.query({ name: 'camera' }).then(result => {
-            console.log('Estado del permiso:', result.state);
-            if (result.state === 'denied') {
-                mostrarInstruccionesDesbloqueo();
-            } else {
-                intentarAccesoCamara();
-            }
-        }).catch(() => intentarAccesoCamara());
-    } else {
-        intentarAccesoCamara();
-    }
-}
-
-function mostrarInstruccionesDesbloqueo() {
-    const statusDiv = document.getElementById('scannerStatus');
-    statusDiv.innerHTML = `
-        <div class="alert alert-danger mb-3">
-            <i class="bi bi-lock me-2"></i>
-            <strong>Cámara bloqueada</strong>
-        </div>
-        <p class="mb-3">Ya denegaste el permiso de cámara. Para habilitarlo:</p>
-        <div class="card bg-light mb-3">
-            <div class="card-body text-start">
-                <p class="mb-2"><strong>En Chrome (Android):</strong></p>
-                <ol class="mb-0 small">
-                    <li>Toca el ícono <strong>🔒</strong> o <strong>ⓘ</strong> en la barra de direcciones</li>
-                    <li>Toca <strong>"Permisos"</strong> o <strong>"Configuración del sitio"</strong></li>
-                    <li>Busca <strong>"Cámara"</strong></li>
-                    <li>Cámbialo a <strong>"Permitir"</strong></li>
-                    <li>Vuelve aquí y toca el botón de abajo</li>
-                </ol>
-            </div>
-        </div>
-        <button class="btn btn-primary btn-lg" onclick="location.reload()">
-            <i class="bi bi-arrow-clockwise me-2"></i>Recargar Página
-        </button>`;
-}
-
-function intentarAccesoCamara() {
-    const statusDiv = document.getElementById('scannerStatus');
-    statusDiv.innerHTML = '<div class="spinner-border text-primary" role="status"></div><p class="mt-2 mb-0">Solicitando acceso a cámara...</p>';
-    
     navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
         .then(stream => {
-            console.log('Permiso de cámara concedido');
+            console.log('Cámara OK');
             window.cameraStream = stream;
             cargarLibreriaYEscanear();
         })
         .catch(err => {
-            console.error('Error de cámara:', err.name, err.message);
-            
+            console.error('Error cámara:', err.name);
             if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-                mostrarInstruccionesDesbloqueo();
-            } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-                statusDiv.innerHTML = `<div class="alert alert-danger mb-0"><i class="bi bi-camera-video-off me-2"></i><strong>No se encontró ninguna cámara</strong></div>`;
-            } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-                statusDiv.innerHTML = `<div class="alert alert-warning mb-3"><i class="bi bi-exclamation-triangle me-2"></i><strong>Cámara ocupada</strong><br><small>Cierra otras apps que usen la cámara</small></div><button class="btn btn-primary" onclick="solicitarPermisoCamara()"><i class="bi bi-arrow-clockwise me-2"></i>Reintentar</button>`;
+                statusDiv.innerHTML = `
+                    <div class="alert alert-warning mb-3"><i class="bi bi-camera-video-off me-2"></i><strong>Permiso denegado</strong></div>
+                    <p class="small">Toca el 🔒 en la barra de direcciones > Permisos > Cámara > Permitir</p>
+                    <button class="btn btn-primary" onclick="location.reload()"><i class="bi bi-arrow-clockwise me-2"></i>Recargar</button>`;
+            } else if (err.name === 'NotFoundError') {
+                statusDiv.innerHTML = `<div class="alert alert-danger mb-0">No se encontró cámara</div>`;
             } else {
-                statusDiv.innerHTML = `<div class="alert alert-danger mb-3"><strong>Error:</strong> ${err.message || err.name}</div><button class="btn btn-primary" onclick="solicitarPermisoCamara()"><i class="bi bi-arrow-clockwise me-2"></i>Reintentar</button>`;
+                statusDiv.innerHTML = `<div class="alert alert-warning mb-3">Error: ${err.message || err.name}</div><button class="btn btn-primary" onclick="solicitarPermisoCamara()">Reintentar</button>`;
             }
         });
 }
