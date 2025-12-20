@@ -711,27 +711,42 @@ function abrirEscaner() {
 
 function solicitarPermisoCamara() {
     const statusDiv = document.getElementById('scannerStatus');
-    statusDiv.innerHTML = '<div class="spinner-border text-primary" role="status"></div><p class="mt-2 mb-0">Accediendo a la cámara...</p>';
     
-    // Debug
-    statusDiv.innerHTML += '<p class="small text-muted">mediaDevices: ' + (navigator.mediaDevices ? 'OK' : 'NO') + '</p>';
+    // Verificar HTTPS
+    const esSeguro = location.protocol === 'https:' || location.hostname === 'localhost';
     
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        statusDiv.innerHTML = `<div class="alert alert-danger mb-0">Tu navegador no soporta cámara</div>`;
+    if (!esSeguro) {
+        statusDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <strong>Se requiere HTTPS</strong><br>
+                La cámara solo funciona en sitios seguros (https://)<br>
+                <small>URL actual: ${location.href}</small>
+            </div>`;
         return;
     }
     
-    statusDiv.innerHTML += '<p class="small text-muted">Llamando getUserMedia...</p>';
+    statusDiv.innerHTML = '<div class="spinner-border text-primary" role="status"></div><p class="mt-2 mb-0">Solicitando cámara...</p>';
+    
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        statusDiv.innerHTML = `<div class="alert alert-danger">Tu navegador no soporta cámara<br><small>Usa Chrome actualizado</small></div>`;
+        return;
+    }
     
     navigator.mediaDevices.getUserMedia({ video: true })
         .then(stream => {
-            statusDiv.innerHTML = '<p class="text-success">¡Cámara OK! Cargando escáner...</p>';
+            statusDiv.innerHTML = '<p class="text-success">¡Cámara OK!</p>';
             window.cameraStream = stream;
             cargarLibreriaYEscanear();
         })
         .catch(err => {
-            statusDiv.innerHTML = '<p class="text-danger">Error: ' + err.name + ' - ' + err.message + '</p>';
-            mostrarErrorCamara(err);
+            statusDiv.innerHTML = `
+                <div class="alert alert-warning">
+                    <strong>${err.name}</strong><br>
+                    ${err.message}<br>
+                    <small>Protocolo: ${location.protocol}</small>
+                </div>
+                <button class="btn btn-primary mt-2" onclick="solicitarPermisoCamara()">Reintentar</button>
+                <button class="btn btn-secondary mt-2" onclick="location.reload()">Recargar</button>`;
         });
 }
 
