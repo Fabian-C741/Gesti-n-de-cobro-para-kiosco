@@ -78,12 +78,9 @@ include 'includes/header.php';
                                    placeholder="🔍 Escribe 3 letras o escanea código de barras..." 
                                    value="<?php echo htmlspecialchars($buscar); ?>"
                                    autofocus>
-                            <button class="btn btn-primary btn-lg" type="button" onclick="abrirEscaner()" title="Escanear con cámara">
-                                <i class="bi bi-camera"></i>
-                            </button>
                         </div>
                         <small class="text-muted d-block mt-1">
-                            <i class="bi bi-info-circle"></i> Escribe 3+ caracteres o usa <strong>📷 la cámara</strong> para escanear
+                            <i class="bi bi-info-circle"></i> Escribe 3+ caracteres para buscar
                         </small>
                     </div>
                 </div>
@@ -676,155 +673,6 @@ function cerrarModalTicket() {
     }
 }
 
-// ===== ESCÁNER DE CÓDIGO DE BARRAS CON CÁMARA =====
-let html5QrCode = null;
-let scannerActivo = false;
-
-function abrirEscaner() {
-    if (!document.getElementById('modalEscaner')) {
-        const modalHtml = `
-        <div class="modal fade" id="modalEscaner" tabindex="-1" data-bs-backdrop="static">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content">
-                    <div class="modal-header bg-primary text-white">
-                        <h5 class="modal-title"><i class="bi bi-camera me-2"></i>Escanear Código de Barras</h5>
-                        <button type="button" class="btn-close btn-close-white" onclick="detenerEscaner()"></button>
-                    </div>
-                    <div class="modal-body p-0">
-                        <div id="reader" style="width: 100%; min-height: 300px; background: #000;"></div>
-                        <div id="scannerStatus" class="p-3 text-center"></div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" onclick="detenerEscaner()">Cancelar</button>
-                    </div>
-                </div>
-            </div>
-        </div>`;
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-    }
-    
-    document.getElementById('scannerStatus').innerHTML = '<div class="spinner-border text-primary" role="status"></div><p class="mt-2 mb-0">Cargando...</p>';
-    const modal = new bootstrap.Modal(document.getElementById('modalEscaner'));
-    modal.show();
-    solicitarPermisoCamara();
-}
-
-function solicitarPermisoCamara() {
-    const statusDiv = document.getElementById('scannerStatus');
-    statusDiv.innerHTML = `
-        <div class="alert alert-info mb-0">
-            <i class="bi bi-info-circle me-2"></i>
-            <strong>Escáner no disponible</strong><br>
-            <small>Ingresa el código de barras manualmente</small>
-        </div>`;
-}
-
-function mostrarErrorCamara(err) {
-    const statusDiv = document.getElementById('scannerStatus');
-    
-    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        statusDiv.innerHTML = `
-            <div class="alert alert-warning mb-3">
-                <i class="bi bi-camera-video-off me-2"></i>
-                <strong>Permiso de cámara denegado</strong>
-            </div>
-            <p class="mb-3">Necesitas permitir el acceso a la cámara:</p>
-            <div class="card bg-light mb-3">
-                <div class="card-body text-start">
-                    <ol class="mb-0 small">
-                        <li>Toca el ícono <strong>🔒</strong> en la barra de direcciones</li>
-                        <li>Toca <strong>"Permisos"</strong></li>
-                        <li>Activa <strong>"Cámara"</strong></li>
-                        <li>Recarga esta página</li>
-                    </ol>
-                </div>
-            </div>
-            <button class="btn btn-primary btn-lg" onclick="location.reload()">
-                <i class="bi bi-arrow-clockwise me-2"></i>Recargar Página
-            </button>`;
-    } else if (err.name === 'NotFoundError') {
-        statusDiv.innerHTML = `<div class="alert alert-danger mb-0"><i class="bi bi-camera-video-off me-2"></i>No se encontró cámara</div>`;
-    } else {
-        statusDiv.innerHTML = `
-            <div class="alert alert-warning mb-3">Error: ${err.message || err.name}</div>
-            <button class="btn btn-primary" onclick="solicitarPermisoCamara()">Reintentar</button>`;
-    }
-}
-
-function cargarLibreriaYEscanear() {
-    const statusDiv = document.getElementById('scannerStatus');
-    statusDiv.innerHTML = '<div class="spinner-border text-primary" role="status"></div><p class="mt-2 mb-0">Iniciando escáner...</p>';
-    
-    if (typeof Html5Qrcode === 'undefined') {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js';
-        script.onload = () => setTimeout(iniciarEscaner, 300);
-        script.onerror = () => { statusDiv.innerHTML = '<div class="alert alert-danger mb-0">No se pudo cargar la librería</div>'; };
-        document.head.appendChild(script);
-    } else {
-        setTimeout(iniciarEscaner, 300);
-    }
-}
-
-function iniciarEscaner() {
-    if (scannerActivo) return;
-    const statusDiv = document.getElementById('scannerStatus');
-    
-    // Liberar el stream de prueba si existe
-    if (window.cameraStream) {
-        window.cameraStream.getTracks().forEach(track => track.stop());
-        window.cameraStream = null;
-    }
-    
-    if (typeof Html5Qrcode === 'undefined') {
-        statusDiv.innerHTML = '<div class="alert alert-danger mb-0">Error: Librería no disponible</div>';
-        return;
-    }
-    
-    try {
-        html5QrCode = new Html5Qrcode("reader");
-        scannerActivo = true;
-        
-        html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 100 } },
-            (decodedText) => {
-                document.getElementById('buscarProducto').value = decodedText;
-                detenerEscaner();
-                buscarProductos(decodedText);
-                if ('vibrate' in navigator) navigator.vibrate(200);
-            },
-            () => {}
-        ).then(() => {
-            statusDiv.innerHTML = '<small class="text-success"><i class="bi bi-check-circle me-1"></i>Apunta al código de barras</small>';
-        }).catch(err => {
-            console.error('Error al iniciar escáner:', err);
-            scannerActivo = false;
-            statusDiv.innerHTML = `
-                <div class="alert alert-warning mb-3">Error al iniciar cámara<br><small>${err}</small></div>
-                <button class="btn btn-primary" onclick="solicitarPermisoCamara()">
-                    <i class="bi bi-arrow-clockwise me-2"></i>Reintentar
-                </button>`;
-        });
-    } catch(e) {
-        console.error('Excepción en escáner:', e);
-        statusDiv.innerHTML = '<div class="alert alert-danger mb-0">Error: ' + e.message + '</div>';
-        scannerActivo = false;
-    }
-}
-
-function detenerEscaner() {
-    if (html5QrCode && scannerActivo) {
-        html5QrCode.stop().then(() => { html5QrCode.clear(); scannerActivo = false; }).catch(() => { scannerActivo = false; });
-    }
-    const modal = bootstrap.Modal.getInstance(document.getElementById('modalEscaner'));
-    if (modal) modal.hide();
-}
-
-document.addEventListener('hidden.bs.modal', function(e) {
-    if (e.target.id === 'modalEscaner' && html5QrCode && scannerActivo) {
-        html5QrCode.stop().catch(() => {});
-        scannerActivo = false;
-    }
-});
 </script>
 
 <?php include 'includes/footer.php'; ?>

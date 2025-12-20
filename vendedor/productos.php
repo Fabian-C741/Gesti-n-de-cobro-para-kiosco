@@ -402,14 +402,10 @@ include 'includes/header.php';
                             <label class="form-label">Código de Barras</label>
                             <div class="input-group">
                                 <input type="text" name="codigo_barras" id="codigo_barras_crear" class="form-control" placeholder="Escanea o escribe">
-                                <button type="button" class="btn btn-outline-primary" onclick="abrirEscanerProducto('codigo_barras_crear')" title="Escanear con cámara">
-                                    <i class="bi bi-camera"></i>
-                                </button>
                                 <button type="button" class="btn btn-outline-secondary" onclick="buscarPorCodigoBarras('crear')">
                                     <i class="bi bi-search"></i>
                                 </button>
                             </div>
-                            <small class="text-muted">Usa la <strong>📷 cámara</strong> o escribe manualmente</small>
                         </div>
                         
                         <div class="col-md-6">
@@ -499,13 +495,7 @@ include 'includes/header.php';
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label">Código de Barras</label>
-                            <div class="input-group">
-                                <input type="text" name="codigo_barras" id="edit_codigo_barras" class="form-control">
-                                <button type="button" class="btn btn-outline-primary" onclick="abrirEscanerProducto('edit_codigo_barras')" title="Escanear con cámara">
-                                    <i class="bi bi-camera"></i>
-                                </button>
-                            </div>
-                            <small class="text-muted">Usa la <strong>📷 cámara</strong> para escanear</small>
+                            <input type="text" name="codigo_barras" id="edit_codigo_barras" class="form-control">
                         </div>
                         
                         <div class="col-md-6">
@@ -733,147 +723,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// ===== ESCÁNER DE CÓDIGO DE BARRAS CON CÁMARA PARA PRODUCTOS =====
-let html5QrCode = null;
-let campoDestino = null;
-let scannerActivo = false;
-
-function abrirEscanerProducto(campoId) {
-    campoDestino = campoId;
-    
-    if (!document.getElementById('modalEscanerProd')) {
-        const modalHtml = `
-        <div class="modal fade" id="modalEscanerProd" tabindex="-1" data-bs-backdrop="static">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content">
-                    <div class="modal-header bg-primary text-white">
-                        <h5 class="modal-title"><i class="bi bi-camera me-2"></i>Escanear Código de Barras</h5>
-                        <button type="button" class="btn-close btn-close-white" onclick="cerrarEscanerProd()"></button>
-                    </div>
-                    <div class="modal-body p-0">
-                        <div id="readerProd" style="width: 100%; min-height: 300px; background: #000;"></div>
-                        <div id="scannerStatusProd" class="p-3 text-center"></div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" onclick="cerrarEscanerProd()">Cancelar</button>
-                    </div>
-                </div>
-            </div>
-        </div>`;
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-    }
-    
-    document.getElementById('scannerStatusProd').innerHTML = '<div class="spinner-border text-primary" role="status"></div><p class="mt-2 mb-0">Cargando...</p>';
-    const modal = new bootstrap.Modal(document.getElementById('modalEscanerProd'));
-    modal.show();
-    solicitarPermisoCamaraProd();
-}
-
-function solicitarPermisoCamaraProd() {
-    const statusDiv = document.getElementById('scannerStatusProd');
-    statusDiv.innerHTML = '<div class="spinner-border text-primary" role="status"></div><p class="mt-2 mb-0">Accediendo a la cámara...</p>';
-    
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        statusDiv.innerHTML = `<div class="alert alert-danger mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Tu navegador no soporta acceso a la cámara.</div>`;
-        return;
-    }
-    
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-        .then(stream => {
-            console.log('Cámara OK');
-            window.cameraStream = stream;
-            cargarLibreriaYEscanearProd();
-        })
-        .catch(err => {
-            console.error('Error cámara:', err.name);
-            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-                statusDiv.innerHTML = `
-                    <div class="alert alert-warning mb-3"><i class="bi bi-camera-video-off me-2"></i><strong>Permiso denegado</strong></div>
-                    <p class="small">Toca el 🔒 en la barra de direcciones > Permisos > Cámara > Permitir</p>
-                    <button class="btn btn-primary" onclick="location.reload()"><i class="bi bi-arrow-clockwise me-2"></i>Recargar</button>`;
-            } else if (err.name === 'NotFoundError') {
-                statusDiv.innerHTML = `<div class="alert alert-danger mb-0">No se encontró cámara</div>`;
-            } else {
-                statusDiv.innerHTML = `<div class="alert alert-warning mb-3">Error: ${err.message || err.name}</div><button class="btn btn-primary" onclick="solicitarPermisoCamaraProd()">Reintentar</button>`;
-            }
-        });
-}
-
-function cargarLibreriaYEscanearProd() {
-    const statusDiv = document.getElementById('scannerStatusProd');
-    statusDiv.innerHTML = '<div class="spinner-border text-primary" role="status"></div><p class="mt-2 mb-0">Iniciando escáner...</p>';
-    
-    if (typeof Html5Qrcode === 'undefined') {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js';
-        script.onload = () => setTimeout(iniciarEscanerProd, 300);
-        script.onerror = () => { statusDiv.innerHTML = '<div class="alert alert-danger mb-0">No se pudo cargar la librería</div>'; };
-        document.head.appendChild(script);
-    } else {
-        setTimeout(iniciarEscanerProd, 300);
-    }
-}
-
-function iniciarEscanerProd() {
-    if (scannerActivo) return;
-    const statusDiv = document.getElementById('scannerStatusProd');
-    
-    if (window.cameraStream) {
-        window.cameraStream.getTracks().forEach(track => track.stop());
-        window.cameraStream = null;
-    }
-    
-    if (typeof Html5Qrcode === 'undefined') {
-        statusDiv.innerHTML = '<div class="alert alert-danger mb-0">Error: Librería no disponible</div>';
-        return;
-    }
-    
-    try {
-        html5QrCode = new Html5Qrcode("readerProd");
-        scannerActivo = true;
-        
-        html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 100 } },
-            (decodedText) => {
-                if (campoDestino) {
-                    document.getElementById(campoDestino).value = decodedText;
-                    document.getElementById(campoDestino).dispatchEvent(new Event('input'));
-                }
-                cerrarEscanerProd();
-                if ('vibrate' in navigator) navigator.vibrate(200);
-            },
-            () => {}
-        ).then(() => {
-            statusDiv.innerHTML = '<small class="text-success"><i class="bi bi-check-circle me-1"></i>Apunta al código de barras</small>';
-        }).catch(err => {
-            console.error('Error al iniciar escáner:', err);
-            scannerActivo = false;
-            statusDiv.innerHTML = `
-                <div class="alert alert-warning mb-3">Error al iniciar cámara<br><small>${err}</small></div>
-                <button class="btn btn-primary" onclick="solicitarPermisoCamaraProd()">
-                    <i class="bi bi-arrow-clockwise me-2"></i>Reintentar
-                </button>`;
-        });
-    } catch(e) {
-        console.error('Excepción en escáner:', e);
-        statusDiv.innerHTML = '<div class="alert alert-danger mb-0">Error: ' + e.message + '</div>';
-        scannerActivo = false;
-    }
-}
-
-function cerrarEscanerProd() {
-    if (html5QrCode && scannerActivo) {
-        html5QrCode.stop().then(() => { html5QrCode.clear(); scannerActivo = false; }).catch(() => { scannerActivo = false; });
-    }
-    const modal = bootstrap.Modal.getInstance(document.getElementById('modalEscanerProd'));
-    if (modal) modal.hide();
-}
-
-document.addEventListener('hidden.bs.modal', function(e) {
-    if (e.target.id === 'modalEscanerProd' && html5QrCode && scannerActivo) {
-        html5QrCode.stop().catch(() => {});
-        scannerActivo = false;
-    }
-});
 </script>
 
 <?php include 'includes/footer.php'; ?>
