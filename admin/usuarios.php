@@ -251,7 +251,7 @@ include 'includes/header.php';
                                 </td>
                                 <td>
                                     <?php if ($rol === 'cajero'): ?>
-                                        <?php if ($usuario['solo_consulta']): ?>
+                                        <?php if (isset($usuario['solo_consulta']) && $usuario['solo_consulta']): ?>
                                             <span class="badge bg-warning text-dark">
                                                 <i class="bi bi-eye me-1"></i>Solo Consulta
                                             </span>
@@ -521,7 +521,7 @@ function editarUsuario(usuario) {
     document.getElementById('edit_username').value = usuario.username || '';
     document.getElementById('edit_rol').value = usuario.user_rol || usuario.rol || 'vendedor';
     document.getElementById('edit_activo').checked = usuario.activo == 1;
-    document.getElementById('edit_solo_consulta').checked = usuario.solo_consulta == 1;
+    document.getElementById('edit_solo_consulta').checked = (usuario.solo_consulta == 1) || false;
     
     // Mostrar/ocultar opción de solo consulta según rol
     toggleSoloConsultaEdit();
