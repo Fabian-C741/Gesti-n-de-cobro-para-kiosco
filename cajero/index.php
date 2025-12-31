@@ -18,6 +18,8 @@ if ($_SESSION['user_rol'] !== 'cajero') {
     exit;
 }
 
+$db = Database::getInstance()->getConnection();
+
 // Verificar si el cajero tiene restricción de solo consulta
 $solo_consulta = false;
 try {
@@ -31,7 +33,6 @@ try {
 }
 
 $page_title = $solo_consulta ? 'Consulta de Precios' : 'Punto de Venta';
-$db = Database::getInstance()->getConnection();
 $pv_id = get_user_punto_venta_id();
 $has_pv_column = column_exists($db, 'productos', 'punto_venta_id');
 
