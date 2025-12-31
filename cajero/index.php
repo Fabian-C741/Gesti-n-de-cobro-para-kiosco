@@ -18,7 +18,19 @@ if ($_SESSION['user_rol'] !== 'cajero') {
     exit;
 }
 
-$page_title = 'Punto de Venta';
+// Verificar si el cajero tiene restricción de solo consulta
+$solo_consulta = false;
+try {
+    $stmt = $db->prepare("SELECT solo_consulta FROM usuarios WHERE id = ?");
+    $stmt->execute([$_SESSION['user_id']]);
+    $usuario_actual = $stmt->fetch();
+    $solo_consulta = (bool)($usuario_actual['solo_consulta'] ?? false);
+} catch (Exception $e) {
+    // Si hay error, permitir acceso normal por seguridad
+    $solo_consulta = false;
+}
+
+$page_title = $solo_consulta ? 'Consulta de Precios' : 'Punto de Venta';
 $db = Database::getInstance()->getConnection();
 $pv_id = get_user_punto_venta_id();
 $has_pv_column = column_exists($db, 'productos', 'punto_venta_id');
@@ -120,6 +132,37 @@ include 'includes/header.php';
                 <?php else: ?>
                 <?php foreach ($productos as $producto): ?>
                 <div class="col-md-6 col-lg-4">
+                    <?php if ($solo_consulta): ?>
+                    <!-- Modo Solo Consulta - Sin interacción -->
+                    <div class="card h-100 border-warning">
+                        <?php if ($producto['imagen']): ?>
+                        <img src="../uploads/<?php echo htmlspecialchars($producto['imagen']); ?>" 
+                             class="card-img-top" style="height: 120px; object-fit: cover;" alt="Producto">
+                        <?php else: ?>
+                        <div class="card-img-top bg-light d-flex align-items-center justify-content-center" 
+                             style="height: 120px;">
+                            <i class="bi bi-image text-muted" style="font-size: 2rem;"></i>
+                        </div>
+                        <?php endif; ?>
+                        
+                        <div class="card-body p-2">
+                            <h6 class="card-title mb-1"><?php echo htmlspecialchars($producto['nombre']); ?></h6>
+                            <?php if ($producto['categoria_nombre']): ?>
+                            <small class="badge bg-secondary mb-1"><?php echo htmlspecialchars($producto['categoria_nombre']); ?></small>
+                            <?php endif; ?>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="fs-5 fw-bold text-success">$<?php echo number_format($producto['precio_venta'], 2); ?></div>
+                                    <small class="text-muted">Stock: <?php echo $producto['stock']; ?></small>
+                                </div>
+                                <div class="badge bg-warning text-dark">
+                                    <i class="bi bi-eye me-1"></i>Solo Ver
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <?php else: ?>
+                    <!-- Modo Normal - Con interacción para venta -->
                     <div class="card producto-item h-100" data-producto='<?php echo htmlspecialchars(json_encode($producto), ENT_QUOTES); ?>' style="cursor: pointer;">
                         <?php if ($producto['imagen']): ?>
                         <img src="../uploads/<?php echo htmlspecialchars($producto['imagen']); ?>" 
@@ -142,14 +185,44 @@ include 'includes/header.php';
                             </div>
                         </div>
                     </div>
+                    <?php endif; ?>
                 </div>
                 <?php endforeach; ?>
                 <?php endif; ?>
             </div>
         </div>
         
-        <!-- Carrito de compra -->
+        <!-- Carrito de compra o Información de Solo Consulta -->
         <div class="col-lg-5">
+            <?php if ($solo_consulta): ?>
+            <!-- Panel de Solo Consulta -->
+            <div class="card sticky-top" style="top: 20px;">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="bi bi-eye me-2"></i>
+                        Modo Solo Consulta
+                    </h5>
+                </div>
+                <div class="card-body text-center py-4">
+                    <div class="mb-4">
+                        <i class="bi bi-search text-warning" style="font-size: 4rem;"></i>
+                    </div>
+                    <h5>Consulta de Precios Activada</h5>
+                    <p class="text-muted mb-0">
+                        Tu cuenta está configurada solo para consultar precios de productos.
+                    </p>
+                    <p class="text-muted">
+                        Para realizar ventas, contacta con el administrador.
+                    </p>
+                    
+                    <div class="alert alert-info mt-3">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <small>Busca productos en el panel izquierdo para ver sus precios</small>
+                    </div>
+                </div>
+            </div>
+            <?php else: ?>
+            <!-- Carrito de Venta Normal -->
             <div class="card sticky-top" style="top: 20px;">
                 <div class="card-header bg-primary text-white">
                     <h5 class="mb-0">
@@ -199,31 +272,38 @@ include 'includes/header.php';
                     </div>
                 </div>
             </div>
+            <?php endif; ?>
         </div>
     </div>
 </div>
 
 <script>
+// Configuración del modo
+const soloConsulta = <?php echo json_encode($solo_consulta); ?>;
+
 // Cargar carrito desde localStorage o inicializar vacío
 let carrito = JSON.parse(localStorage.getItem('carrito_cajero')) || [];
 let timeoutBusqueda = null;
 
 // Actualizar carrito en localStorage
 function guardarCarrito() {
-    localStorage.setItem('carrito_cajero', JSON.stringify(carrito));
+    if (!soloConsulta) {
+        localStorage.setItem('carrito_cajero', JSON.stringify(carrito));
+    }
 }
 
 // Cargar carrito al iniciar
 document.addEventListener('DOMContentLoaded', function() {
-    actualizarCarrito();
-    
-    // Auto-agregar producto si solo hay uno (para escaneo de código de barras)
-    const productosCards = document.querySelectorAll('.producto-item[data-producto]');
-    if (productosCards.length === 1) {
-        try {
-            const producto = JSON.parse(productosCards[0].dataset.producto);
-            agregarAlCarrito(producto);
-        } catch (error) {
+    if (!soloConsulta) {
+        actualizarCarrito();
+        
+        // Auto-agregar producto si solo hay uno (para escaneo de código de barras)
+        const productosCards = document.querySelectorAll('.producto-item[data-producto]');
+        if (productosCards.length === 1) {
+            try {
+                const producto = JSON.parse(productosCards[0].dataset.producto);
+                agregarAlCarrito(producto);
+            } catch (error) {
             console.error('Error al auto-agregar producto:', error);
         }
     }
@@ -295,6 +375,11 @@ document.getElementById('metodoPago').addEventListener('change', function() {
 
 // Agregar al carrito
 function agregarAlCarrito(producto) {
+    // Si está en modo solo consulta, no hacer nada
+    if (soloConsulta) {
+        return;
+    }
+    
     const index = carrito.findIndex(item => item.id === producto.id);
     
     if (index >= 0) {

@@ -68,10 +68,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     } else {
                         try {
                             $stmt = $db->prepare("
-                                INSERT INTO usuarios (nombre, email, username, password, user_rol, punto_venta_id, token_usado) 
-                                VALUES (?, ?, ?, ?, ?, ?, 1)
+                                INSERT INTO usuarios (nombre, email, username, password, user_rol, punto_venta_id, solo_consulta, token_usado) 
+                                VALUES (?, ?, ?, ?, ?, ?, ?, 1)
                             ");
-                            $stmt->execute([$nombre, $email, $username, hash_password($password), $rol, $punto_venta_id]);
+                            $stmt->execute([$nombre, $email, $username, hash_password($password), $rol, $punto_venta_id, $solo_consulta]);
                             
                             log_activity($db, $_SESSION['user_id'], 'crear_usuario', "Usuario creado: $email (Rol: $rol)");
                             $success = 'Usuario creado exitosamente';
@@ -88,6 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $username = sanitize_input($_POST['username'] ?? '');
             $password = $_POST['password'] ?? '';
             $rol = trim($_POST['rol'] ?? 'vendedor');
+            $solo_consulta = isset($_POST['solo_consulta']) && $_POST['solo_consulta'] === '1' ? 1 : 0;
             
             // Mantener el punto de venta - obtener de BD si no está en sesión
             $punto_venta_id = $_SESSION['punto_venta_id'] ?? null;
@@ -121,18 +122,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         } else {
                             $stmt = $db->prepare("
                                 UPDATE usuarios 
-                                SET nombre = ?, email = ?, username = ?, password = ?, user_rol = ?, punto_venta_id = ?, activo = ? 
+                                SET nombre = ?, email = ?, username = ?, password = ?, user_rol = ?, punto_venta_id = ?, solo_consulta = ?, activo = ? 
                                 WHERE id = ?
                             ");
-                            $stmt->execute([$nombre, $email, $username, hash_password($password), $rol, $punto_venta_id, $activo, $id]);
+                            $stmt->execute([$nombre, $email, $username, hash_password($password), $rol, $punto_venta_id, $solo_consulta, $activo, $id]);
                         }
                     } else {
                         $stmt = $db->prepare("
                             UPDATE usuarios 
-                            SET nombre = ?, email = ?, username = ?, user_rol = ?, punto_venta_id = ?, activo = ? 
+                            SET nombre = ?, email = ?, username = ?, user_rol = ?, punto_venta_id = ?, solo_consulta = ?, activo = ? 
                             WHERE id = ?
                         ");
-                        $stmt->execute([$nombre, $email, $username, $rol, $punto_venta_id, $activo, $id]);
+                        $stmt->execute([$nombre, $email, $username, $rol, $punto_venta_id, $solo_consulta, $activo, $id]);
                     }
                     
                     log_activity($db, $_SESSION['user_id'], 'editar_usuario', "Usuario editado: $email (Rol: $rol)");
@@ -187,8 +188,10 @@ $puntos_venta = $stmt->fetchAll();
 $stmt = $db->query("
     SELECT u.*, 
            (SELECT COUNT(*) FROM productos WHERE usuario_id = u.id) as total_productos,
-           (SELECT COUNT(*) FROM ventas WHERE usuario_id = u.id) as total_ventas
+           (SELECT COUNT(*) FROM ventas WHERE usuario_id = u.id) as total_ventas,
+           pv.nombre as punto_venta
     FROM usuarios u
+    LEFT JOIN puntos_venta pv ON u.punto_venta_id = pv.id
     ORDER BY u.user_rol, u.fecha_creacion DESC
 ");
 $usuarios = $stmt->fetchAll();
@@ -223,6 +226,7 @@ include 'includes/header.php';
                             <th>Nombre</th>
                             <th>Email</th>
                             <th>Rol</th>
+                            <th>Permisos</th>
                             <th>Sucursal</th>
                             <th>Punto Venta</th>
                             <th>Productos</th>
@@ -244,6 +248,21 @@ include 'includes/header.php';
                                     $rolTexto = $rol === 'admin' ? 'Administrador' : ($rol === 'cajero' ? 'Cajero' : 'Vendedor');
                                     ?>
                                     <span class="badge bg-<?php echo $badgeColor; ?>"><?php echo $rolTexto; ?></span>
+                                </td>
+                                <td>
+                                    <?php if ($rol === 'cajero'): ?>
+                                        <?php if ($usuario['solo_consulta']): ?>
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="bi bi-eye me-1"></i>Solo Consulta
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="badge bg-success">
+                                                <i class="bi bi-cash-coin me-1"></i>Completo
+                                            </span>
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        <span class="text-muted">-</span>
+                                    <?php endif; ?>
                                 </td>
                                 <td><?php echo htmlspecialchars($usuario['sucursal'] ?? '-'); ?></td>
                                 <td>
@@ -332,6 +351,19 @@ include 'includes/header.php';
                         </small>
                     </div>
                     
+                    <div class="mb-3" id="crear_solo_consulta_container" style="display: none;">
+                        <div class="form-check">
+                            <input type="checkbox" name="solo_consulta" id="crear_solo_consulta" class="form-check-input" value="1">
+                            <label class="form-check-label" for="crear_solo_consulta">
+                                <strong>Solo Consulta de Precios</strong>
+                            </label>
+                        </div>
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Si está marcado, el cajero solo podrá consultar precios, no realizar ventas
+                        </small>
+                    </div>
+                    
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -385,6 +417,19 @@ include 'includes/header.php';
                             <option value="cajero">Cajero</option>
                             <option value="admin">Administrador</option>
                         </select>
+                    </div>
+                    
+                    <div class="mb-3" id="edit_solo_consulta_container" style="display: none;">
+                        <div class="form-check">
+                            <input type="checkbox" name="solo_consulta" id="edit_solo_consulta" class="form-check-input" value="1">
+                            <label class="form-check-label" for="edit_solo_consulta">
+                                <strong>Solo Consulta de Precios</strong>
+                            </label>
+                        </div>
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Si está marcado, el cajero solo podrá consultar precios, no realizar ventas
+                        </small>
                     </div>
                     
                     <div class="mb-3">
@@ -474,8 +519,12 @@ function editarUsuario(usuario) {
     document.getElementById('edit_nombre').value = usuario.nombre;
     document.getElementById('edit_email').value = usuario.email;
     document.getElementById('edit_username').value = usuario.username || '';
-    document.getElementById('edit_rol').value = usuario.rol || 'vendedor';
+    document.getElementById('edit_rol').value = usuario.user_rol || usuario.rol || 'vendedor';
     document.getElementById('edit_activo').checked = usuario.activo == 1;
+    document.getElementById('edit_solo_consulta').checked = usuario.solo_consulta == 1;
+    
+    // Mostrar/ocultar opción de solo consulta según rol
+    toggleSoloConsultaEdit();
     
     new bootstrap.Modal(document.getElementById('modalEditar')).show();
 }
@@ -493,6 +542,38 @@ function restablecerPassword(id, nombre) {
     
     new bootstrap.Modal(document.getElementById('modalRestablecer')).show();
 }
+
+function toggleSoloConsultaCrear() {
+    const rol = document.getElementById('crear_rol').value;
+    const container = document.getElementById('crear_solo_consulta_container');
+    const checkbox = document.getElementById('crear_solo_consulta');
+    
+    if (rol === 'cajero') {
+        container.style.display = 'block';
+    } else {
+        container.style.display = 'none';
+        checkbox.checked = false; // Limpiar el checkbox si no es cajero
+    }
+}
+
+function toggleSoloConsultaEdit() {
+    const rol = document.getElementById('edit_rol').value;
+    const container = document.getElementById('edit_solo_consulta_container');
+    const checkbox = document.getElementById('edit_solo_consulta');
+    
+    if (rol === 'cajero') {
+        container.style.display = 'block';
+    } else {
+        container.style.display = 'none';
+        checkbox.checked = false; // Limpiar el checkbox si no es cajero
+    }
+}
+
+// Event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('crear_rol').addEventListener('change', toggleSoloConsultaCrear);
+    document.getElementById('edit_rol').addEventListener('change', toggleSoloConsultaEdit);
+});
 </script>
 
 <?php include 'includes/footer.php'; ?>

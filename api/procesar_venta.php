@@ -16,6 +16,26 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
+// Verificar si es cajero con restricción de solo consulta
+if ($_SESSION['user_rol'] === 'cajero') {
+    try {
+        $db = Database::getInstance()->getConnection();
+        $stmt = $db->prepare("SELECT solo_consulta FROM usuarios WHERE id = ?");
+        $stmt->execute([$_SESSION['user_id']]);
+        $usuario = $stmt->fetch();
+        
+        if ($usuario && $usuario['solo_consulta']) {
+            echo json_encode([
+                'success' => false, 
+                'message' => 'Acceso denegado: Tu cuenta está configurada solo para consulta de precios'
+            ]);
+            exit;
+        }
+    } catch (Exception $e) {
+        // Si hay error, permitir por seguridad (fail-open)
+    }
+}
+
 try {
     $db = Database::getInstance()->getConnection();
     
