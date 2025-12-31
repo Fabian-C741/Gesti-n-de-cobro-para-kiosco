@@ -29,7 +29,7 @@ if ($esLocal) {
 }
 
 // Configuración de seguridad
-define('SESSION_LIFETIME', 3600 * 8); // 8 horas
+define('SESSION_LIFETIME', 3600 * 24); // 24 horas
 define('TOKEN_LENGTH', 64);
 define('PASSWORD_MIN_LENGTH', 8); // Aumentado a 8 caracteres
 

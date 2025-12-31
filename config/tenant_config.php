@@ -33,8 +33,8 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-// Verificar expiración de sesión (8 horas)
-$session_lifetime = 28800; // 8 horas
+// Verificar expiración de sesión (24 horas)
+$session_lifetime = 86400; // 24 horas
 if (isset($_SESSION['login_time']) && (time() - $_SESSION['login_time']) > $session_lifetime) {
     session_destroy();
     header('Location: /tenant_login.php?error=sesion_expirada');

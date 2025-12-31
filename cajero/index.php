@@ -27,6 +27,12 @@ try {
     $stmt->execute([$_SESSION['user_id']]);
     $usuario_actual = $stmt->fetch();
     $solo_consulta = (bool)($usuario_actual['solo_consulta'] ?? false);
+    
+    // Si es solo consulta, redirigir a la página específica
+    if ($solo_consulta) {
+        header('Location: consultar_precios.php');
+        exit;
+    }
 } catch (Exception $e) {
     // Si hay error, permitir acceso normal por seguridad
     $solo_consulta = false;

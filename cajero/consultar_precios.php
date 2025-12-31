@@ -17,6 +17,17 @@ if ($_SESSION['user_rol'] !== 'cajero') {
 $page_title = 'Consultar Precios';
 $db = Database::getInstance()->getConnection();
 
+// Verificar si el usuario está en modo solo consulta
+$solo_consulta_usuario = false;
+try {
+    $stmt = $db->prepare("SELECT solo_consulta FROM usuarios WHERE id = ?");
+    $stmt->execute([$_SESSION['user_id']]);
+    $usuario_actual = $stmt->fetch();
+    $solo_consulta_usuario = (bool)($usuario_actual['solo_consulta'] ?? false);
+} catch (Exception $e) {
+    $solo_consulta_usuario = false;
+}
+
 // Búsqueda de productos
 $buscar = $_GET['buscar'] ?? '';
 $productos = [];
@@ -42,7 +53,20 @@ include 'includes/header.php';
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2><i class="bi bi-search me-2"></i><?php echo $page_title; ?></h2>
+        <?php if ($solo_consulta_usuario): ?>
+        <span class="badge bg-warning text-dark fs-6">
+            <i class="bi bi-eye me-1"></i>Modo Solo Consulta
+        </span>
+        <?php endif; ?>
     </div>
+
+    <?php if ($solo_consulta_usuario): ?>
+    <!-- Aviso para usuarios en modo solo consulta -->
+    <div class="alert alert-info mb-4">
+        <i class="bi bi-info-circle me-2"></i>
+        <strong>Modo Solo Consulta:</strong> Tu cuenta está configurada únicamente para consultar precios de productos.
+    </div>
+    <?php endif; ?>
 
     <!-- Buscador -->
     <div class="card mb-4">
