@@ -14,12 +14,7 @@ function sanitize_input($data) {
     return $data;
 }
 
-/**
- * Validar email
- */
-function validate_email($email) {
-    return filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
-}
+// validate_email() movida a input_validator.php para evitar duplicación
 
 /**
  * Generar token aleatorio seguro

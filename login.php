@@ -124,7 +124,7 @@ if (!check_ip_blacklist($db, $client_ip)) {
 
 // Rate limiting básico
 if (!check_rate_limit($db, $client_ip)) {
-    log_security_event($db, 'rate_limit_exceeded', $client_ip, 'Demasiadas peticiones a login.php');
+    log_security_event_legacy($db, 'rate_limit_exceeded', $client_ip, 'Demasiadas peticiones a login.php');
     http_response_code(429);
     die('Demasiadas peticiones. Por favor, intente más tarde.');
 }
@@ -147,7 +147,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Verificar CSRF token
     if (!isset($_POST['csrf_token']) || !verify_csrf_token($_POST['csrf_token'])) {
         $error = 'Token de seguridad inválido';
-        log_security_event($db, 'csrf_token_invalid', $client_ip, 'Token CSRF inválido en login');
+        log_security_event_legacy($db, 'csrf_token_invalid', $client_ip, 'Token CSRF inválido en login');
     } else {
         $login_input = sanitize_input($_POST['email'] ?? ''); // Puede ser email o username
         $password = $_POST['password'] ?? '';
@@ -155,7 +155,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // Detectar patrones de ataque
         if (detect_attack_patterns($login_input . $password . $token_acceso)) {
-            log_security_event($db, 'attack_pattern_detected', $client_ip, "Patrón de ataque en login");
+            log_security_event_legacy($db, 'attack_pattern_detected', $client_ip, "Patrón de ataque en login");
             add_to_blacklist($db, $client_ip, 'Patrón de ataque detectado', 24);
             die('Acceso denegado.');
         }
@@ -238,14 +238,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                                 $db->commit();
                                                 
                                                 log_activity($db, $usuario_id, 'registro', 'Usuario registrado con token');
-                                                log_security_event($db, 'user_registered', $client_ip, "Nuevo usuario: $login_input");
+                                                log_security_event_legacy($db, 'user_registered', $client_ip, "Nuevo usuario: $login_input");
                                                 
                                                 $success = 'Cuenta creada exitosamente. Ahora puede iniciar sesión';
                                             }
                                         } catch (PDOException $e) {
                                             $db->rollBack();
                                             $error = 'Error al crear la cuenta. Intente nuevamente';
-                                            log_security_event($db, 'registration_error', $client_ip, "Error: " . $e->getMessage());
+                                            log_security_event_legacy($db, 'registration_error', $client_ip, "Error: " . $e->getMessage());
                                         }
                                     }
                                 }
@@ -259,7 +259,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $check_attempts = check_login_attempts($db, $login_input);
                     if (!$check_attempts['allowed']) {
                         $error = $check_attempts['message'];
-                        log_security_event($db, 'login_blocked', $client_ip, "Login: $login_input - " . $check_attempts['message']);
+                        log_security_event_legacy($db, 'login_blocked', $client_ip, "Login: $login_input - " . $check_attempts['message']);
                     } else {
                         // Buscar por email o username (compatible con/sin punto_venta_id)
                         $stmt = $db->prepare("
@@ -273,14 +273,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         if (!$usuario) {
                             $error = 'Usuario/Email o contraseña incorrectos';
                             record_failed_login($db, $login_input);
-                            log_security_event($db, 'login_failed', $client_ip, "Usuario/Email no encontrado: $login_input");
+                            log_security_event_legacy($db, 'login_failed', $client_ip, "Usuario/Email no encontrado: $login_input");
                         } elseif (!$usuario['activo']) {
                             $error = 'Su cuenta está desactivada. Contacte al administrador';
-                            log_security_event($db, 'login_attempt_inactive', $client_ip, "Login: $login_input");
+                            log_security_event_legacy($db, 'login_attempt_inactive', $client_ip, "Login: $login_input");
                         } elseif (!verify_password($password, $usuario['password'])) {
                             $error = 'Usuario/Email o contraseña incorrectos';
                             record_failed_login($db, $login_input);
-                            log_security_event($db, 'login_failed', $client_ip, "Contraseña incorrecta para: $login_input");
+                            log_security_event_legacy($db, 'login_failed', $client_ip, "Contraseña incorrecta para: $login_input");
                         } else {
                             // Login exitoso - Limpiar intentos fallidos
                             clear_login_attempts($db, $login_input);
@@ -316,7 +316,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             session_regenerate_id(true);
                             
                             log_activity($db, $usuario['id'], 'login', 'Inicio de sesión exitoso');
-                            log_security_event($db, 'login_success', $client_ip, "Usuario: {$usuario['email']}");
+                            log_security_event_legacy($db, 'login_success', $client_ip, "Usuario: {$usuario['email']}");
                             
                             // Redirigir según rol
                             if ($usuario['user_rol'] === 'admin') {

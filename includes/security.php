@@ -43,7 +43,7 @@ function check_rate_limit($db, $ip_address, $max_requests = MAX_REQUESTS_PER_IP)
             // Verificar si superó el límite
             if ($record['request_count'] >= $max_requests) {
                 // Registrar intento de ataque
-                log_security_event($db, 'rate_limit_exceeded', $ip_address, "Superó límite de {$max_requests} peticiones/minuto");
+                log_security_event_legacy($db, 'rate_limit_exceeded', $ip_address, "Superó límite de {$max_requests} peticiones/minuto");
                 return false;
             }
             
@@ -118,7 +118,7 @@ function check_login_attempts($db, $identifier, $max_attempts = MAX_LOGIN_ATTEMP
                 ");
                 $stmt->execute([$locked_until, $identifier]);
                 
-                log_security_event($db, 'account_locked', $_SERVER['REMOTE_ADDR'] ?? 'unknown', "Cuenta bloqueada: {$identifier}");
+                log_security_event_legacy($db, 'account_locked', $_SERVER['REMOTE_ADDR'] ?? 'unknown', "Cuenta bloqueada: {$identifier}");
                 
                 return [
                     'allowed' => false,
@@ -163,7 +163,7 @@ function record_failed_login($db, $identifier) {
         $record = $stmt->fetch();
         
         if ($record && $record['attempts'] >= MAX_LOGIN_ATTEMPTS - 2) {
-            log_security_event($db, 'multiple_failed_logins', $ip, "Email: {$identifier}, Intentos: {$record['attempts']}");
+            log_security_event_legacy($db, 'multiple_failed_logins', $ip, "Email: {$identifier}, Intentos: {$record['attempts']}");
         }
     } catch (PDOException $e) {
         // Ignorar errores
@@ -190,7 +190,12 @@ function clear_login_attempts($db, $identifier) {
 /**
  * Registrar evento de seguridad
  */
-function log_security_event($db, $event_type, $ip_address, $description) {
+function log_security_event_legacy($db, $event_type, $ip_address, $description) {
+    // Asegurar que description sea string
+    if (is_array($description) || is_object($description)) {
+        $description = json_encode($description);
+    }
+    
     // Si no hay conexión a BD, logear a archivo de error
     if (!$db || !is_object($db)) {
         error_log("SECURITY_EVENT: {$event_type} - {$description} - IP: {$ip_address}");
