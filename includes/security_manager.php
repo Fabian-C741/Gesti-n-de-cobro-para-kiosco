@@ -6,9 +6,10 @@
 
 // Autoload de todos los componentes de seguridad
 require_once __DIR__ . '/security_headers.php';
-require_once __DIR__ . '/security_logger.php';
 require_once __DIR__ . '/input_validator.php';
 require_once __DIR__ . '/csrf_protection.php';
+
+// Security Logger se carga después de verificar Database
 
 class SecurityManager {
     private static $instance = null;
@@ -33,7 +34,13 @@ class SecurityManager {
      */
     private function loadDatabase() {
         try {
-            $this->db = Database::getInstance()->getConnection();
+            // Cargar SecurityLogger solo si Database está disponible
+            if (class_exists('Database')) {
+                require_once __DIR__ . '/security_logger.php';
+                $this->db = Database::getInstance()->getConnection();
+            } else {
+                $this->db = null;
+            }
         } catch (Exception $e) {
             error_log("SecurityManager: No se pudo conectar a la base de datos - " . $e->getMessage());
             $this->db = null;
@@ -96,10 +103,12 @@ class SecurityManager {
             SecurityHeaders::setAllSecurityHeaders();
         }
         
-        // Inicializar logger de seguridad
-        global $security_logger;
-        if (!isset($security_logger)) {
-            $security_logger = new SecurityLogger();
+        // Inicializar logger de seguridad solo si está disponible
+        if (class_exists('SecurityLogger')) {
+            global $security_logger;
+            if (!isset($security_logger)) {
+                $security_logger = new SecurityLogger();
+            }
         }
         
         // Verificar rate limiting

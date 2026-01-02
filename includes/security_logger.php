@@ -9,13 +9,14 @@ class SecurityLogger {
     private $log_file;
     
     public function __construct($log_to_db = true, $log_to_file = true) {
-        if ($log_to_db) {
+        if ($log_to_db && class_exists('Database')) {
             try {
                 $this->db = Database::getInstance()->getConnection();
                 $this->ensureSecurityTable();
             } catch (Exception $e) {
                 // Si no hay BD disponible, solo log a archivo
                 $this->db = null;
+                error_log("SecurityLogger: BD no disponible - " . $e->getMessage());
             }
         }
         
@@ -281,39 +282,65 @@ class SecurityLogger {
     }
 }
 
-// Instancia global
-$security_logger = new SecurityLogger();
+// Instancia global solo si Database está disponible
+if (class_exists('Database')) {
+    $security_logger = new SecurityLogger();
+}
 
 /**
  * Funciones helper globales
  */
 function log_security_event($event_type, $message, $severity = 'MEDIUM', $additional_data = null, $user_id = null) {
     global $security_logger;
-    $security_logger->logEvent($event_type, $message, $severity, $additional_data, $user_id);
+    if (isset($security_logger)) {
+        $security_logger->logEvent($event_type, $message, $severity, $additional_data, $user_id);
+    } else {
+        error_log("SECURITY_EVENT [{$severity}] {$event_type}: {$message}");
+    }
 }
 
 function log_login_attempt($username, $success, $user_id = null) {
     global $security_logger;
-    $security_logger->logLoginAttempt($username, $success, $user_id);
+    if (isset($security_logger)) {
+        $security_logger->logLoginAttempt($username, $success, $user_id);
+    } else {
+        error_log("LOGIN_ATTEMPT: {$username} - " . ($success ? 'SUCCESS' : 'FAILED'));
+    }
 }
 
 function log_brute_force($username, $attempt_count) {
     global $security_logger;
-    $security_logger->logBruteForceAttempt($username, $attempt_count);
+    if (isset($security_logger)) {
+        $security_logger->logBruteForceAttempt($username, $attempt_count);
+    } else {
+        error_log("BRUTE_FORCE: {$username} - Attempt #{$attempt_count}");
+    }
 }
 
 function log_sql_injection($query, $user_id = null) {
     global $security_logger;
-    $security_logger->logSQLInjectionAttempt($query, $user_id);
+    if (isset($security_logger)) {
+        $security_logger->logSQLInjectionAttempt($query, $user_id);
+    } else {
+        error_log("SQL_INJECTION_ATTEMPT: " . substr($query, 0, 100));
+    }
 }
 
 function log_xss_attempt($payload, $user_id = null) {
     global $security_logger;
-    $security_logger->logXSSAttempt($payload, $user_id);
+    if (isset($security_logger)) {
+        $security_logger->logXSSAttempt($payload, $user_id);
+    } else {
+        error_log("XSS_ATTEMPT: " . substr($payload, 0, 100));
+    }
 }
 
 function log_csrf_attempt($user_id = null) {
     global $security_logger;
-    $security_logger->logCSRFAttempt($user_id);
+    if (isset($security_logger)) {
+        $security_logger->logCSRFAttempt($user_id);
+    } else {
+        error_log("CSRF_ATTEMPT from IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+    }
 }
 ?>
