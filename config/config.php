@@ -100,3 +100,6 @@ if (session_status() === PHP_SESSION_NONE) {
 // header('X-Frame-Options: SAMEORIGIN');
 // header('X-XSS-Protection: 1; mode=block');
 // header('Referrer-Policy: strict-origin-when-cross-origin');
+
+// INICIALIZACIÓN DEL SISTEMA DE SEGURIDAD AVANZADO
+require_once __DIR__ . '/../includes/security_manager.php';

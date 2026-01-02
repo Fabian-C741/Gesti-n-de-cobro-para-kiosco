@@ -140,6 +140,11 @@ $pagos_pendientes = $stmt->fetchAll();
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link" href="auditoria_seguridad.php">
+                            <i class="bi bi-shield-check me-1"></i>Seguridad
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link" href="acceso_clientes.php">
                             <i class="bi bi-door-open me-1"></i>Acceso Clientes
                         </a>
