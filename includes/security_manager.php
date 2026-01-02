@@ -5,6 +5,7 @@
  */
 
 // Autoload de todos los componentes de seguridad
+require_once __DIR__ . '/database_connectivity.php';
 require_once __DIR__ . '/security_headers.php';
 require_once __DIR__ . '/security.php';  // Para funciones como check_rate_limit
 require_once __DIR__ . '/input_validator.php';
@@ -35,12 +36,13 @@ class SecurityManager {
      */
     private function loadDatabase() {
         try {
-            // Cargar SecurityLogger solo si Database está disponible
-            if (class_exists('Database')) {
+            // Usar verificador de conectividad
+            if (DatabaseConnectivity::isAvailable()) {
                 require_once __DIR__ . '/security_logger.php';
-                $this->db = Database::getInstance()->getConnection();
+                $this->db = DatabaseConnectivity::getSafeConnection();
             } else {
                 $this->db = null;
+                error_log("SecurityManager: Base de datos no disponible - funcionando en modo degradado");
             }
         } catch (Exception $e) {
             error_log("SecurityManager: No se pudo conectar a la base de datos - " . $e->getMessage());
@@ -168,11 +170,14 @@ class SecurityManager {
         $ip = $this->getClientIP();
         $limit = $this->getSetting('rate_limit_requests', 100);
         
-        if (check_rate_limit($this->db, $ip, $limit) === false) {
-            http_response_code(429);
-            header('Retry-After: 60');
-            log_security_event('RATE_LIMIT_EXCEEDED', "IP bloqueada por exceder límite: {$limit} req/min", 'HIGH');
-            die(json_encode(['error' => 'Rate limit exceeded', 'retry_after' => 60]));
+        // Pasar null si no hay BD, la función check_rate_limit manejará el caso
+        if (function_exists('check_rate_limit')) {
+            if (check_rate_limit($this->db, $ip, $limit) === false) {
+                http_response_code(429);
+                header('Retry-After: 60');
+                log_security_event('RATE_LIMIT_EXCEEDED', "IP bloqueada por exceder límite: {$limit} req/min", 'HIGH');
+                die(json_encode(['error' => 'Rate limit exceeded', 'retry_after' => 60]));
+            }
         }
     }
     
@@ -185,21 +190,14 @@ class SecurityManager {
         $ip = $this->getClientIP();
         
         try {
-            $stmt = $this->db->prepare("
-                SELECT reason, blocked_until 
-                FROM ip_blacklist 
-                WHERE ip_address = ? AND (blocked_until IS NULL OR blocked_until > NOW())
-            ");
-            $stmt->execute([$ip]);
-            $block = $stmt->fetch();
-            
-            if ($block) {
+            if (function_exists('check_ip_blacklist') && check_ip_blacklist($this->db, $ip)) {
                 http_response_code(403);
-                log_security_event('BLACKLISTED_IP_ACCESS', "IP bloqueada intentó acceder: {$block['reason']}", 'HIGH');
-                die(json_encode(['error' => 'IP blocked', 'reason' => $block['reason']]));
+                log_security_event('BLACKLISTED_IP_ACCESS', "IP bloqueada intentó acceder", 'HIGH');
+                die(json_encode(['error' => 'IP blocked']));
             }
         } catch (Exception $e) {
             // Continuar si hay error verificando blacklist
+            error_log("Error verificando blacklist: " . $e->getMessage());
         }
     }
     

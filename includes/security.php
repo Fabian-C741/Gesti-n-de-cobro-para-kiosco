@@ -12,6 +12,12 @@ function check_rate_limit($db, $ip_address, $max_requests = MAX_REQUESTS_PER_IP)
         return true;
     }
     
+    // Si no hay conexión a BD, permitir acceso pero logear
+    if (!$db || !is_object($db)) {
+        error_log("Rate limiting deshabilitado: Sin conexión a base de datos");
+        return true;
+    }
+    
     try {
         // Crear tabla si no existe
         $db->exec("
@@ -61,6 +67,12 @@ function check_rate_limit($db, $ip_address, $max_requests = MAX_REQUESTS_PER_IP)
  * Anti-Brute Force - Limitar intentos de login
  */
 function check_login_attempts($db, $identifier, $max_attempts = MAX_LOGIN_ATTEMPTS) {
+    // Si no hay conexión a BD, permitir acceso
+    if (!$db || !is_object($db)) {
+        error_log("Login attempts check deshabilitado: Sin conexión a base de datos");
+        return true;
+    }
+    
     try {
         // Crear tabla si no existe
         $db->exec("
@@ -126,6 +138,12 @@ function check_login_attempts($db, $identifier, $max_attempts = MAX_LOGIN_ATTEMP
  * Registrar intento de login fallido
  */
 function record_failed_login($db, $identifier) {
+    // Si no hay conexión a BD, no registrar pero continuar
+    if (!$db || !is_object($db)) {
+        error_log("Failed login recording deshabilitado: Sin conexión a base de datos");
+        return;
+    }
+    
     try {
         $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
         
@@ -156,6 +174,11 @@ function record_failed_login($db, $identifier) {
  * Limpiar intentos de login después de login exitoso
  */
 function clear_login_attempts($db, $identifier) {
+    // Si no hay conexión a BD, no limpiar pero continuar
+    if (!$db || !is_object($db)) {
+        return;
+    }
+    
     try {
         $stmt = $db->prepare("DELETE FROM login_attempts WHERE identifier = ?");
         $stmt->execute([$identifier]);
@@ -168,6 +191,12 @@ function clear_login_attempts($db, $identifier) {
  * Registrar evento de seguridad
  */
 function log_security_event($db, $event_type, $ip_address, $description) {
+    // Si no hay conexión a BD, logear a archivo de error
+    if (!$db || !is_object($db)) {
+        error_log("SECURITY_EVENT: {$event_type} - {$description} - IP: {$ip_address}");
+        return;
+    }
+    
     try {
         // Crear tabla si no existe
         $db->exec("
@@ -199,6 +228,11 @@ function log_security_event($db, $event_type, $ip_address, $description) {
  * Verificar IP en lista negra
  */
 function check_ip_blacklist($db, $ip_address) {
+    // Si no hay conexión a BD, permitir acceso
+    if (!$db || !is_object($db)) {
+        return false;
+    }
+    
     try {
         // Crear tabla si no existe
         $db->exec("
@@ -236,6 +270,12 @@ function check_ip_blacklist($db, $ip_address) {
  * Agregar IP a lista negra
  */
 function add_to_blacklist($db, $ip_address, $reason, $duration_hours = 24) {
+    // Si no hay conexión a BD, logear a archivo
+    if (!$db || !is_object($db)) {
+        error_log("BLACKLIST_ADD: {$ip_address} - {$reason} (BD no disponible)");
+        return false;
+    }
+    
     try {
         $blocked_until = date('Y-m-d H:i:s', time() + ($duration_hours * 3600));
         
@@ -341,6 +381,11 @@ function secure_compare($a, $b) {
  * Limpiar logs antiguos automáticamente
  */
 function cleanup_old_logs($db, $days = 30) {
+    // Si no hay conexión a BD, no limpiar
+    if (!$db || !is_object($db)) {
+        return false;
+    }
+    
     try {
         // Limpiar logs de actividad antiguos
         $stmt = $db->prepare("DELETE FROM logs_actividad WHERE fecha < DATE_SUB(NOW(), INTERVAL ? DAY)");
