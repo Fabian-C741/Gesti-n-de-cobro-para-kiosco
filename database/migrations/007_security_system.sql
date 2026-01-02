@@ -108,14 +108,37 @@ INSERT INTO security_settings (setting_key, setting_value, setting_type, descrip
 ON DUPLICATE KEY UPDATE
 setting_value = VALUES(setting_value);
 
--- 8. Trigger para limpiar sesiones expiradas
+-- 8. Procedimiento de limpieza seguro con verificaciones
 DELIMITER $$
+CREATE PROCEDURE IF NOT EXISTS CleanSecurityTables()
+BEGIN
+    -- Limpiar sesiones expiradas si existe la tabla
+    IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 'user_sessions' AND table_schema = DATABASE()) THEN
+        DELETE FROM user_sessions WHERE expires_at < NOW();
+    END IF;
+    
+    -- Limpiar rate limits antiguos si existe la tabla
+    IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 'rate_limit' AND table_schema = DATABASE()) THEN
+        DELETE FROM rate_limit WHERE last_request < DATE_SUB(NOW(), INTERVAL 1 HOUR);
+    END IF;
+    
+    -- Limpiar intentos de login antiguos si existe la tabla y columna
+    IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = 'login_attempts' AND column_name = 'attempt_time' AND table_schema = DATABASE()) THEN
+        DELETE FROM login_attempts WHERE attempt_time < DATE_SUB(NOW(), INTERVAL 24 HOUR) AND locked_until IS NULL;
+    END IF;
+    
+    -- Limpiar logs de seguridad antiguos si existe la tabla
+    IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 'security_logs' AND table_schema = DATABASE()) THEN
+        DELETE FROM security_logs WHERE created_at < DATE_SUB(NOW(), INTERVAL 30 DAY);
+    END IF;
+END$$
+
+-- Evento programado para ejecutar la limpieza
 CREATE EVENT IF NOT EXISTS cleanup_expired_sessions
 ON SCHEDULE EVERY 1 HOUR
 DO
-BEGIN
-    DELETE FROM user_sessions WHERE expires_at < NOW();
-    DELETE FROM rate_limit WHERE last_request < DATE_SUB(NOW(), INTERVAL 1 HOUR);
-    DELETE FROM login_attempts WHERE attempt_time < DATE_SUB(NOW(), INTERVAL 24 HOUR) AND locked_until IS NULL;
-END$$
+    CALL CleanSecurityTables()$$
+
+-- Ejecutar la limpieza inicial
+CALL CleanSecurityTables()$$
 DELIMITER ;

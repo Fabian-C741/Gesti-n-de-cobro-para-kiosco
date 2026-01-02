@@ -19,18 +19,40 @@ class MigrationRunner {
     private $migrations_dir;
     
     public function __construct() {
-        $this->db = Database::getInstance()->getConnection();
-        $this->migrations_dir = __DIR__ . '/migrations';
-        $this->ensureMigrationsTable();
+        try {
+            $this->db = Database::getInstance()->getConnection();
+            
+            if (!$this->db) {
+                throw new Exception("No se pudo conectar a la base de datos");
+            }
+            
+            $this->migrations_dir = __DIR__ . '/migrations';
+            $this->ensureMigrationsTable();
+            
+        } catch (Exception $e) {
+            echo "❌ Error de conexión a base de datos: " . $e->getMessage() . "\n";
+            echo "🔄 Sistema funcionando en modo degradado sin migraciones\n";
+            throw $e;
+        }
     }
     
     /**
      * Crear tabla de migraciones si no existe
      */
     private function ensureMigrationsTable() {
-        $schema = file_get_contents(__DIR__ . '/schema.sql');
-        $this->db->exec($schema);
-        echo "✓ Tabla de migraciones verificada\n";
+        try {
+            $schema = file_get_contents(__DIR__ . '/schema.sql');
+            if ($schema === false) {
+                throw new Exception("No se pudo leer schema.sql");
+            }
+            
+            $this->db->exec($schema);
+            echo "✓ Tabla de migraciones verificada\n";
+            
+        } catch (Exception $e) {
+            echo "❌ Error al crear tabla de migraciones: " . $e->getMessage() . "\n";
+            throw $e;
+        }
     }
     
     /**
