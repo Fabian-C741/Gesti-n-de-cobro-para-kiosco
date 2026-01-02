@@ -178,7 +178,11 @@ class SecurityManager {
             if (check_rate_limit($this->db, $ip, $limit) === false) {
                 http_response_code(429);
                 header('Retry-After: 60');
-                log_security_event('RATE_LIMIT_EXCEEDED', "IP bloqueada por exceder límite: {$limit} req/min", 'HIGH');
+                // Log usando SecurityLogger global si existe
+                global $security_logger;
+                if ($security_logger) {
+                    $security_logger->log('RATE_LIMIT_EXCEEDED', "IP bloqueada por exceder límite: {$limit} req/min", 'HIGH');
+                }
                 die(json_encode(['error' => 'Rate limit exceeded', 'retry_after' => 60]));
             }
         }
@@ -195,7 +199,11 @@ class SecurityManager {
         try {
             if (function_exists('check_ip_blacklist') && check_ip_blacklist($this->db, $ip)) {
                 http_response_code(403);
-                log_security_event('BLACKLISTED_IP_ACCESS', "IP bloqueada intentó acceder", 'HIGH');
+                // Log usando SecurityLogger global si existe
+                global $security_logger;
+                if ($security_logger) {
+                    $security_logger->log('BLACKLISTED_IP_ACCESS', "IP bloqueada intentó acceder", 'HIGH');
+                }
                 die(json_encode(['error' => 'IP blocked']));
             }
         } catch (Exception $e) {
@@ -213,13 +221,17 @@ class SecurityManager {
         
         foreach ($sensitive_pages as $page) {
             if (strpos($current_page, $page) !== false) {
-                log_security_event(
-                    'SENSITIVE_PAGE_ACCESS',
-                    "Acceso a página sensible: {$current_page}",
-                    'LOW',
-                    ['page' => $current_page, 'method' => $_SERVER['REQUEST_METHOD'] ?? 'GET'],
-                    $_SESSION['user_id'] ?? null
-                );
+                // Log usando SecurityLogger global si existe
+                global $security_logger;
+                if ($security_logger) {
+                    $security_logger->log(
+                        'SENSITIVE_PAGE_ACCESS',
+                        "Acceso a página sensible: {$current_page}",
+                        'LOW',
+                        ['page' => $current_page, 'method' => $_SERVER['REQUEST_METHOD'] ?? 'GET'],
+                        $_SESSION['user_id'] ?? null
+                    );
+                }
                 break;
             }
         }
@@ -273,13 +285,17 @@ class SecurityManager {
         
         foreach ($inputs as $key => $value) {
             if (is_string($value) && InputValidator::detectMaliciousPatterns($value)) {
-                log_security_event(
-                    'MALICIOUS_INPUT_DETECTED',
-                    "Entrada maliciosa detectada en {$key}",
-                    'CRITICAL',
-                    ['key' => $key, 'value' => substr($value, 0, 200)],
-                    $_SESSION['user_id'] ?? null
-                );
+                // Log usando SecurityLogger global si existe
+                global $security_logger;
+                if ($security_logger) {
+                    $security_logger->log(
+                        'MALICIOUS_INPUT_DETECTED',
+                        "Entrada maliciosa detectada en {$key}",
+                        'CRITICAL',
+                        ['key' => $key, 'value' => substr($value, 0, 200)],
+                        $_SESSION['user_id'] ?? null
+                    );
+                }
                 
                 http_response_code(400);
                 die(json_encode(['error' => 'Invalid input detected']));
