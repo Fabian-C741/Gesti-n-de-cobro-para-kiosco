@@ -19,8 +19,9 @@
     <?php if (file_exists('../assets/css/custom.css')): ?>
     <link rel="stylesheet" href="../assets/css/custom.css?v=<?php echo time(); ?>">
     <?php endif; ?>
+    <script src="../assets/js/session-renewer.js"></script>
 </head>
-<body>
+<body class="logged-in" data-user-id="<?php echo $_SESSION['user_id']; ?>">
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
         <div class="sidebar-brand">

@@ -7,6 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="../assets/css/style.css?v=<?php echo time(); ?>">
+    <script src="../assets/js/session-renewer.js"></script>
     <style>
         .cajero-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -35,7 +36,7 @@
         }
     </style>
 </head>
-<body>
+<body class="logged-in" data-user-id="<?php echo $_SESSION['user_id']; ?>">
     <div class="cajero-header">
         <div class="container-fluid">
             <div class="row align-items-center">
