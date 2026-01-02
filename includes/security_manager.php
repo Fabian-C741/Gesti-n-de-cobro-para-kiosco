@@ -22,6 +22,9 @@ class SecurityManager {
         $this->loadDatabase();
         $this->loadSettings();
         $this->initializeSecurity();
+        
+        // Ejecutar limpieza automática si es necesario
+        $this->cleanup();
     }
     
     public static function getInstance() {
@@ -285,12 +288,70 @@ class SecurityManager {
     }
     
     /**
-     * Cleanup automático
+     * Cleanup automático mejorado
      */
     public function cleanup() {
         global $security_logger;
-        $retention_days = $this->getSetting('log_retention_days', 90);
-        $security_logger->cleanupOldLogs($retention_days);
+        
+        if (!$this->db) {
+            return false; // No hay base de datos, no podemos limpiar
+        }
+        
+        try {
+            // Solo limpiar una vez por hora para no sobrecargar
+            $lastCleanup = @file_get_contents(__DIR__ . '/../logs/last_security_cleanup.txt');
+            $currentTime = time();
+            
+            if ($lastCleanup && ($currentTime - (int)$lastCleanup) < 3600) {
+                return true; // Limpieza ya ejecutada en la última hora
+            }
+            
+            $cleanupCount = 0;
+            
+            // Limpiar logs de seguridad antiguos (usando SecurityLogger)
+            $retention_days = $this->getSetting('log_retention_days', 90);
+            $security_logger->cleanupOldLogs($retention_days);
+            
+            // Limpiar sesiones expiradas
+            try {
+                $stmt = $this->db->prepare("DELETE FROM user_sessions WHERE expires_at < NOW()");
+                $stmt->execute();
+                $cleanupCount += $stmt->rowCount();
+            } catch (Exception $e) {
+                // Ignorar errores si la tabla no existe
+            }
+            
+            // Limpiar rate limits antiguos
+            try {
+                $stmt = $this->db->prepare("DELETE FROM rate_limit WHERE last_request < DATE_SUB(NOW(), INTERVAL 1 HOUR)");
+                $stmt->execute();
+                $cleanupCount += $stmt->rowCount();
+            } catch (Exception $e) {
+                // Ignorar errores si la tabla no existe
+            }
+            
+            // Limpiar intentos de login antiguos
+            try {
+                $stmt = $this->db->prepare("DELETE FROM login_attempts WHERE attempt_time < DATE_SUB(NOW(), INTERVAL 24 HOUR) AND locked_until IS NULL");
+                $stmt->execute();
+                $cleanupCount += $stmt->rowCount();
+            } catch (Exception $e) {
+                // Ignorar errores si la tabla no existe o no tiene la columna
+            }
+            
+            // Registrar última limpieza
+            @file_put_contents(__DIR__ . '/../logs/last_security_cleanup.txt', $currentTime);
+            
+            if ($cleanupCount > 0) {
+                error_log("SecurityManager: Limpieza automática completada - $cleanupCount registros eliminados");
+            }
+            
+            return true;
+            
+        } catch (Exception $e) {
+            error_log("SecurityManager: Error en limpieza automática - " . $e->getMessage());
+            return false;
+        }
     }
 }
 

@@ -108,24 +108,9 @@ INSERT INTO security_settings (setting_key, setting_value, setting_type, descrip
 ON DUPLICATE KEY UPDATE
 setting_value = VALUES(setting_value);
 
--- 8. Evento programado para limpiar datos antiguos
-DELIMITER $$
-CREATE EVENT IF NOT EXISTS cleanup_expired_sessions
-ON SCHEDULE EVERY 1 HOUR
-DO
-BEGIN
-    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
-    
-    -- Limpiar sesiones expiradas (ignora error si no existe)
-    DELETE FROM user_sessions WHERE expires_at < NOW();
-    
-    -- Limpiar rate limits antiguos (ignora error si no existe)  
-    DELETE FROM rate_limit WHERE last_request < DATE_SUB(NOW(), INTERVAL 1 HOUR);
-    
-    -- Limpiar intentos de login antiguos (ignora error si no existe)
-    DELETE FROM login_attempts WHERE attempt_time < DATE_SUB(NOW(), INTERVAL 24 HOUR) AND locked_until IS NULL;
-    
-    -- Limpiar logs de seguridad antiguos (ignora error si no existe)
-    DELETE FROM security_logs WHERE created_at < DATE_SUB(NOW(), INTERVAL 30 DAY);
-END$$
-DELIMITER ;
+-- 8. Sistema simplificado de limpieza (sin eventos por compatibilidad)
+-- Las limpiezas se harán via código PHP en SecurityManager::cleanup()
+-- Esto asegura compatibilidad total con cualquier versión de MySQL/MariaDB
+
+-- Configuración completada exitosamente
+SELECT 'Sistema de seguridad avanzado instalado correctamente' as status;
