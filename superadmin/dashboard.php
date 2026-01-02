@@ -135,6 +135,11 @@ $pagos_pendientes = $stmt->fetchAll();
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link" href="configuracion_sesiones.php">
+                            <i class="bi bi-clock-history me-1"></i>Sesiones
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link" href="acceso_clientes.php">
                             <i class="bi bi-door-open me-1"></i>Acceso Clientes
                         </a>

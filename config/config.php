@@ -29,7 +29,9 @@ if ($esLocal) {
 }
 
 // Configuración de seguridad
-define('SESSION_LIFETIME', 3600 * 24); // 24 horas
+// SESSION_LIFETIME ahora se calcula dinámicamente por rol
+// Se mantiene valor por defecto pero se sobrescribe según el rol del usuario
+define('SESSION_LIFETIME_DEFAULT', 3600 * 8); // 8 horas (fallback por defecto)
 define('TOKEN_LENGTH', 64);
 define('PASSWORD_MIN_LENGTH', 8); // Aumentado a 8 caracteres
 
@@ -65,9 +67,20 @@ if ($esLocal) {
 
 // Configuración de sesiones seguras - solo si la sesión no está activa
 if (session_status() === PHP_SESSION_NONE) {
-    // Forzar configuración de sesión de 24 horas
-    ini_set('session.gc_maxlifetime', SESSION_LIFETIME);
-    ini_set('session.cookie_lifetime', SESSION_LIFETIME);
+    // Cargar configuración dinámica de sesiones por rol
+    require_once __DIR__ . '/../includes/session_config.php';
+    
+    // Obtener duración de sesión según rol (si está disponible)
+    $session_duration = SESSION_LIFETIME_DEFAULT; // Fallback
+    
+    // Si ya hay sesión iniciada, usar configuración específica del rol
+    if (isset($_SESSION['rol']) && function_exists('getSessionDurationByRole')) {
+        $session_duration = getSessionDurationByRole($_SESSION['rol']) * 3600;
+    }
+    
+    // Configurar parámetros de sesión
+    ini_set('session.gc_maxlifetime', $session_duration);
+    ini_set('session.cookie_lifetime', $session_duration);
     ini_set('session.gc_probability', 1);
     ini_set('session.gc_divisor', 1000);
     

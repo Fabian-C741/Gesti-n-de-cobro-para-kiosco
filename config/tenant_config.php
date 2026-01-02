@@ -33,8 +33,13 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-// Verificar expiración de sesión (24 horas)
-$session_lifetime = 86400; // 24 horas
+// Verificar expiración de sesión según rol del usuario
+require_once __DIR__ . '/../includes/session_config.php';
+
+// Obtener duración de sesión según el rol del usuario actual
+$user_rol = $_SESSION['user_rol'] ?? 'cajero';
+$session_lifetime = getSessionDurationByRole($user_rol, $db);
+
 if (isset($_SESSION['login_time']) && (time() - $_SESSION['login_time']) > $session_lifetime) {
     session_destroy();
     header('Location: /tenant_login.php?error=sesion_expirada');
