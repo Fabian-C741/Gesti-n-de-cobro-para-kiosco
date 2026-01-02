@@ -108,37 +108,24 @@ INSERT INTO security_settings (setting_key, setting_value, setting_type, descrip
 ON DUPLICATE KEY UPDATE
 setting_value = VALUES(setting_value);
 
--- 8. Procedimiento de limpieza seguro con verificaciones
+-- 8. Evento programado para limpiar datos antiguos
 DELIMITER $$
-CREATE PROCEDURE IF NOT EXISTS CleanSecurityTables()
-BEGIN
-    -- Limpiar sesiones expiradas si existe la tabla
-    IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 'user_sessions' AND table_schema = DATABASE()) THEN
-        DELETE FROM user_sessions WHERE expires_at < NOW();
-    END IF;
-    
-    -- Limpiar rate limits antiguos si existe la tabla
-    IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 'rate_limit' AND table_schema = DATABASE()) THEN
-        DELETE FROM rate_limit WHERE last_request < DATE_SUB(NOW(), INTERVAL 1 HOUR);
-    END IF;
-    
-    -- Limpiar intentos de login antiguos si existe la tabla y columna
-    IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = 'login_attempts' AND column_name = 'attempt_time' AND table_schema = DATABASE()) THEN
-        DELETE FROM login_attempts WHERE attempt_time < DATE_SUB(NOW(), INTERVAL 24 HOUR) AND locked_until IS NULL;
-    END IF;
-    
-    -- Limpiar logs de seguridad antiguos si existe la tabla
-    IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 'security_logs' AND table_schema = DATABASE()) THEN
-        DELETE FROM security_logs WHERE created_at < DATE_SUB(NOW(), INTERVAL 30 DAY);
-    END IF;
-END$$
-
--- Evento programado para ejecutar la limpieza
 CREATE EVENT IF NOT EXISTS cleanup_expired_sessions
 ON SCHEDULE EVERY 1 HOUR
 DO
-    CALL CleanSecurityTables()$$
-
--- Ejecutar la limpieza inicial
-CALL CleanSecurityTables()$$
+BEGIN
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+    
+    -- Limpiar sesiones expiradas (ignora error si no existe)
+    DELETE FROM user_sessions WHERE expires_at < NOW();
+    
+    -- Limpiar rate limits antiguos (ignora error si no existe)  
+    DELETE FROM rate_limit WHERE last_request < DATE_SUB(NOW(), INTERVAL 1 HOUR);
+    
+    -- Limpiar intentos de login antiguos (ignora error si no existe)
+    DELETE FROM login_attempts WHERE attempt_time < DATE_SUB(NOW(), INTERVAL 24 HOUR) AND locked_until IS NULL;
+    
+    -- Limpiar logs de seguridad antiguos (ignora error si no existe)
+    DELETE FROM security_logs WHERE created_at < DATE_SUB(NOW(), INTERVAL 30 DAY);
+END$$
 DELIMITER ;
