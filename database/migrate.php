@@ -7,6 +7,10 @@
  * O incluir en el deploy: require_once 'database/migrate.php';
  */
 
+// Definir que estamos en modo migración para evitar problemas de seguridad
+define('MIGRATION_MODE', true);
+define('DISABLE_AUTO_SECURITY_HEADERS', true);
+
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/Database.php';
 

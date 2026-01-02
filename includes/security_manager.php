@@ -6,6 +6,7 @@
 
 // Autoload de todos los componentes de seguridad
 require_once __DIR__ . '/security_headers.php';
+require_once __DIR__ . '/security.php';  // Para funciones como check_rate_limit
 require_once __DIR__ . '/input_validator.php';
 require_once __DIR__ . '/csrf_protection.php';
 
@@ -98,8 +99,8 @@ class SecurityManager {
      * Inicializar sistemas de seguridad
      */
     private function initializeSecurity() {
-        // Aplicar headers de seguridad
-        if (!headers_sent()) {
+        // Aplicar headers de seguridad solo si no estamos en migración
+        if (!headers_sent() && !defined('MIGRATION_MODE')) {
             SecurityHeaders::setAllSecurityHeaders();
         }
         
@@ -111,14 +112,16 @@ class SecurityManager {
             }
         }
         
-        // Verificar rate limiting
-        $this->checkRateLimit();
-        
-        // Verificar IP bloqueada
-        $this->checkBlacklist();
-        
-        // Log de inicio de sesión
-        $this->logPageAccess();
+        // Verificar rate limiting solo si no estamos en migración
+        if (!defined('MIGRATION_MODE')) {
+            $this->checkRateLimit();
+            
+            // Verificar IP bloqueada
+            $this->checkBlacklist();
+            
+            // Log de inicio de sesión
+            $this->logPageAccess();
+        }
     }
     
     /**

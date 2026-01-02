@@ -140,7 +140,7 @@ class SecurityHeaders {
      */
     private static function isHTTPS() {
         return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
-               $_SERVER['SERVER_PORT'] == 443 ||
+               ($_SERVER['SERVER_PORT'] ?? 80) == 443 ||
                (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ||
                (!empty($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on');
     }
@@ -249,9 +249,9 @@ class SecurityMiddleware {
 }
 
 /**
- * Auto-aplicar headers básicos
+ * Auto-aplicar headers básicos solo si no se han enviado
  */
-if (!headers_sent()) {
+if (!headers_sent() && !defined('DISABLE_AUTO_SECURITY_HEADERS')) {
     SecurityHeaders::setBasicHeaders();
 }
 ?>
