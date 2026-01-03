@@ -87,7 +87,7 @@ if (session_status() === PHP_SESSION_NONE) {
     // Configuraciones de seguridad
     ini_set('session.cookie_httponly', 1);
     ini_set('session.use_only_cookies', 1);
-    ini_set('session.cookie_secure', 0); // Cambiar a 1 si usas HTTPS
+    ini_set('session.cookie_secure', 1); // HTTPS obligatorio para cookies seguras
     ini_set('session.cookie_samesite', 'Strict');
     ini_set('session.use_strict_mode', 1);
     ini_set('session.sid_length', 48);
